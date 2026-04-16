@@ -1,0 +1,26 @@
+{
+  "one_time": false,
+  "inline": false,
+  "buttons":[
+     [
+      {
+        "action":{
+          "type":"callback",
+          "payload":"{\"command\": \"del_favorite\"}",
+          "label":"Убрать из списка ❌"
+        },
+        "color":"negative"
+      }
+    ],
+    [
+      {
+        "action":{
+          "type":"callback",
+          "payload":"{\"command\": \"main_menu\"}",
+          "label":"Главное меню \uD83D\uDD19"
+        },
+        "color":"secondary"
+      }
+    ]
+  ]
+}
