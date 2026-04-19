@@ -2,31 +2,15 @@ import random
 import requests
 import json
 
-from enum import Enum
 from collections import namedtuple
 from urllib.parse import urljoin
 
 from src.vk_api.keyboard import Keyboard
-
+from src.vk_api.types import Attachment, Photo, Events
 
 URL_BASE = "https://api.vk.ru/method/"
 
 VK_API_VERSION = "5.199"
-
-Attachment = namedtuple('Attachment',
-                        ["type", "owner_id", "media_id", "access_key"],
-                        defaults=None)
-Photo = namedtuple('Photo',
-                          ["attachment", "like_count"])
-
-class Events(Enum):
-    SEND_MESSAGE = 1
-    PUSH_BUTTON = 2
-
-class Sex(Enum):
-    any = 0
-    women = 1
-    men = 2
 
 
 class API:
@@ -167,18 +151,22 @@ class API:
 
         return regions
 
-    def get_cities(self, city_name: str, region_id: int = None):
+    def get_cities(self, city_name: str = None, region_id: int = None):
         url = urljoin(URL_BASE, "database.getCities")
 
         params = {
             "access_token": self.__user_token,
-            "q": city_name,
             "need_all": 1,
             "v": VK_API_VERSION
         }
 
+        if city_name:
+            params["q"] = city_name
+
         if region_id:
             params["region_id"] = region_id
+
+
 
         response = requests.get(url, params)
 
@@ -226,7 +214,10 @@ class API:
         last_name = user_json_data["last_name"]
         city_id = user_json_data["city"]["id"]
         city_name = user_json_data["city"]["title"]
-        birthday_date = user_json_data["bdate"]
+        if "bdate" in user_json_data:
+            birthday_date = user_json_data["bdate"]
+        else:
+            birthday_date = ""
         sex_index = user_json_data["sex"]
         is_closed = user_json_data["is_closed"]
 

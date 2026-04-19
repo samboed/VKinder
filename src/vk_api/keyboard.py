@@ -1,30 +1,14 @@
-import dataclasses
 import json as js
 
-from enum import StrEnum
 from varname import nameof
 
-
-@dataclasses.dataclass(frozen=True)
-class ButtonTypes(StrEnum):
-    text = "text"
-    location = "location"
-    open_link = "open_link"
-    callback = "callback"
-
-
-@dataclasses.dataclass(frozen=True)
-class ButtonColorTypes(StrEnum):
-    primary = "primary"
-    secondary = "secondary"
-    negative = "negative"
-    positive = "positive"
+from src.vk_api.types import ButtonTypes, ButtonColorTypes
 
 
 class Button:
     def __init__(self, button_type: ButtonTypes, label: str = None,
                  payload: dict = None, link: str = None,
-                 color:ButtonColorTypes = ButtonColorTypes.secondary):
+                 color: ButtonColorTypes = ButtonColorTypes.secondary):
         if not isinstance(button_type, ButtonTypes):
             raise TypeError(f"Argument '{nameof(button_type)}' must have a {ButtonTypes.__name__} type")
         if not isinstance(color, ButtonColorTypes):
@@ -71,7 +55,6 @@ class Button:
                      "color": self.__color}
 
         return structure
-
 
     @property
     def type(self):

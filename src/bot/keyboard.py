@@ -1,5 +1,5 @@
-from src.vk_api.keyboard import Button, ButtonTypes, ButtonColorTypes, Keyboard
-from src.vk_api.api import Sex
+from src.vk_api.keyboard import Button, Keyboard
+from src.vk_api.types import Sex, ButtonTypes, ButtonColorTypes
 
 payload_command_keyword = "command"
 payload_user_id_keyword = "user_id"
@@ -48,6 +48,10 @@ button_all_sex_preference_select = Button(ButtonTypes.callback,
                                           payload={payload_command_keyword: command_add_sex_prefer,
                                                    payload_value_keyword: Sex.any.value},
                                           color=ButtonColorTypes.secondary)
+
+sex_setting_keyboard = Keyboard([[button_men_sex_preference_select,
+                                  button_women_sex_preference_select,
+                                  button_all_sex_preference_select]])
 
 # Settings menu
 button_setup_city = Button(ButtonTypes.callback,
@@ -105,6 +109,10 @@ button_delete_user_from_favorites = Button(ButtonTypes.callback,
                                            payload={payload_command_keyword: command_del_user_from_favorites},
                                            color=ButtonColorTypes.primary)
 
+favorites_keyboard = Keyboard([[button_show_user_from_favorites],
+                              [button_delete_user_from_favorites],
+                              [button_main_menu]])
+
 # Blacklist
 button_show_user_from_blacklist = Button(ButtonTypes.callback,
                                          label="Показать фотографии 🖼️",
@@ -114,4 +122,8 @@ button_delete_user_from_blacklist = Button(ButtonTypes.callback,
                                            label="Удалить из списка 🗑️",
                                            payload={payload_command_keyword: command_del_user_from_blacklist},
                                            color=ButtonColorTypes.primary)
+
+blacklist_keyboard = Keyboard([[button_show_user_from_blacklist],
+                               [button_delete_user_from_blacklist],
+                               [button_main_menu]])
 
