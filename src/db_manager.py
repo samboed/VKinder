@@ -1,10 +1,10 @@
 import os
-from dotenv import load_dotenv
+
 import sqlalchemy as sq
+from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
-# Импортируем классы из нашего нового расположения
-from src.database import User, Candidate, Favorite, Blacklist, Photo
+from src.database import User, Candidate, Favorite, Blacklist, UserSetting, Photo
 
 
 class DatabaseManager:
@@ -17,9 +17,23 @@ class DatabaseManager:
         if not user:
             new_user = User(vk_id=vk_id)
             self.session.add(new_user)
+
+            new_settings = UserSetting(user_vk_id=vk_id)
+            self.session.add(new_settings)
+
             self.session.commit()
             return True
         return False
+
+    def get_user_settings(self, vk_id):
+        return self.session.query(UserSetting).filter_by(user_vk_id=vk_id).first()
+
+    def update_user_setting(self, vk_id, **kwargs):
+        setting = self.get_user_settings(vk_id)
+        if setting:
+            for key, value in kwargs.items():
+                setattr(setting, key, value)
+            self.session.commit()
 
     def add_candidate(self, vk_id, first_name, last_name):
         candidate = self.session.query(Candidate).filter_by(vk_id=vk_id).first()
@@ -36,6 +50,13 @@ class DatabaseManager:
             candidate.first_name = new_first_name
             candidate.last_name = new_last_name
             self.session.commit()
+
+    def check_candidate(self, user_vk_id, candidate_vk_id):
+        in_favorites = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id,
+                                                              candidate_vk_id=candidate_vk_id).first()
+        in_blacklist = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id,
+                                                               candidate_vk_id=candidate_vk_id).first()
+        return bool(in_favorites or in_blacklist)
 
     def add_to_favorites(self, user_vk_id, candidate_vk_id):
         exists = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id).first()
@@ -55,22 +76,41 @@ class DatabaseManager:
             return True
         return False
 
-    def check_candidate(self, user_vk_id, candidate_vk_id):
-        in_favorites = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id,
-                                                              candidate_vk_id=candidate_vk_id).first()
-        in_blacklist = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id,
-                                                               candidate_vk_id=candidate_vk_id).first()
-        return bool(in_favorites or in_blacklist)
+    def get_favorites(self, user_vk_id):
+        favorites = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id).all()
+        return [fav.candidate for fav in favorites]
+
+    def get_blacklist(self, user_vk_id):
+        blacklist = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id).all()
+        return [blocked.candidate for blocked in blacklist]
+
+    def delete_favorite(self, user_vk_id, candidate_vk_id):
+        fav = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id).first()
+        if fav:
+            self.session.delete(fav)
+            self.session.commit()
+            return True
+        return False
+
+    def delete_blacklist(self, user_vk_id, candidate_vk_id):
+        block = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id).first()
+        if block:
+            self.session.delete(block)
+            self.session.commit()
+            return True
+        return False
+
+    def add_photo(self, candidate_vk_id, url, likes_count):
+        new_photo = Photo(candidate_vk_id=candidate_vk_id, url=url, likes_count=likes_count)
+        self.session.add(new_photo)
+        self.session.commit()
 
 
 if __name__ == '__main__':
-    # 1. Загружаем переменные из файла .env
     load_dotenv()
 
-    # 2. Берем строку подключения безопасно из системы
     DSN = os.getenv('DSN')
 
-    # Защита: если забыли создать .env
     if not DSN:
         raise ValueError("DSN не найден! Убедитесь, что создали файл .env с переменной DSN.")
 
