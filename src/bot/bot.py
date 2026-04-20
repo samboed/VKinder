@@ -11,14 +11,12 @@ from src.bot.partner import BotPartner
 from src.bot.setting import BotSetting
 from src.bot.show_messages import BotShow
 from src.bot.types import DialogStates
-from src.db_manager import DatabaseManager
 from src.vk_api.types import Events
 
 
 class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
     def __init__(self, group_token, user_token, group_id, engine):
-        super().__init__(group_token, user_token, group_id)
-        self.db = DatabaseManager(engine)
+        BotBase.__init__(self, group_token, user_token, group_id, engine)
 
     def start(self):
         self.__handler_events()

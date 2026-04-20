@@ -10,9 +10,6 @@ from src.bot.partner import BotPartner
 
 
 class BotShow(BotPartner, BotMessage, BotBase):
-    def __init__(self, group_token, user_token, group_id):
-        super().__init__(group_token, user_token, group_id)
-
     def _show_main_menu(self, user_id: int):
         self._api.send_message(user_id, MAIN_MENU_TEXT, main_menu_keyboard)
 
@@ -30,13 +27,19 @@ class BotShow(BotPartner, BotMessage, BotBase):
 
         candidate = people_list[favorite_num - 1]
 
+        city_name = candidate.city.name if candidate.city else ""
+        region_name = candidate.region.name if candidate.region else ""
+
         user_info = get_user_info_str(candidate.vk_id,
                                       candidate.first_name,
                                       candidate.last_name,
-                                      city_name="",
-                                      region_name="")
+                                      city_name=city_name,
+                                      region_name=region_name)
 
-        photo_attachments = [photo.url for photo in candidate.photos]
+        photo_attachments = [
+            self._api.get_attachment_photo(photo.owner_id, photo.media_id)
+            for photo in candidate.photos
+        ]
 
         self._api.send_message(user_id, user_info, attachments=photo_attachments)
 
@@ -63,14 +66,20 @@ class BotShow(BotPartner, BotMessage, BotBase):
     def _show_settings(self, user_id: int):
         settings = self.db.get_user_settings(user_id)
 
+        city_name = ""
+        region_name = ""
+        sex_index = 0
+        age_from = 0
+        age_to = 0
+
         if settings:
-            city_name = settings.city_name or ""
-            region_name = settings.region_name or ""
             sex_index = settings.sex_index or 0
             age_from = settings.age_from or 0
             age_to = settings.age_to or 0
-        else:
-            city_name, region_name, sex_index, age_from, age_to = ("", "", 0, 0, 0)
+            if settings.city:
+                city_name = settings.city.name
+                if settings.city.region:
+                    region_name = settings.city.region.name
 
         sex_name = get_sex_str(sex_index)
         age_info = get_age_range_str(age_from, age_to)

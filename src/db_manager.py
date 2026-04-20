@@ -4,7 +4,7 @@ import sqlalchemy as sq
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
-from src.database import User, Candidate, Favorite, Blacklist, UserSetting, Photo
+from src.database import User, PartnerInfo, Favorite, Blacklist, UserSetting, TempSetting, Photo, Region, City
 
 
 class DatabaseManager:
@@ -21,6 +21,9 @@ class DatabaseManager:
             new_settings = UserSetting(user_vk_id=vk_id)
             self.session.add(new_settings)
 
+            new_temp_settings = TempSetting(user_vk_id=vk_id)
+            self.session.add(new_temp_settings)
+
             self.session.commit()
             return True
         return False
@@ -35,42 +38,73 @@ class DatabaseManager:
                 setattr(setting, key, value)
             self.session.commit()
 
-    def add_candidate(self, vk_id, first_name, last_name):
-        candidate = self.session.query(Candidate).filter_by(vk_id=vk_id).first()
-        if not candidate:
-            new_candidate = Candidate(vk_id=vk_id, first_name=first_name, last_name=last_name)
-            self.session.add(new_candidate)
+    def get_temp_setting(self, vk_id):
+        return self.session.query(TempSetting).filter_by(user_vk_id=vk_id).first()
+
+    def update_temp_setting(self, vk_id, **kwargs):
+        setting = self.get_temp_setting(vk_id)
+        if setting:
+            for key, value in kwargs.items():
+                setattr(setting, key, value)
+            self.session.commit()
+
+    def get_or_create_region(self, region_id, name):
+        region = self.session.query(Region).filter_by(id=region_id).first()
+        if not region:
+            region = Region(id=region_id, name=name)
+            self.session.add(region)
+            self.session.commit()
+        return region
+
+    def get_or_create_city(self, city_id, name, region_id):
+        city = self.session.query(City).filter_by(id=city_id).first()
+        if not city:
+            city = City(id=city_id, name=name, region_id=region_id)
+            self.session.add(city)
+            self.session.commit()
+        return city
+
+    def add_partner(self, vk_id, first_name, last_name, age, city_id, region_id):
+        partner = self.session.query(PartnerInfo).filter_by(vk_id=vk_id).first()
+        if not partner:
+            new_partner = PartnerInfo(
+                vk_id=vk_id,
+                first_name=first_name,
+                last_name=last_name,
+                age=age,
+                city_id=city_id,
+                region_id=region_id
+            )
+            self.session.add(new_partner)
             self.session.commit()
             return True
         return False
 
-    def update_candidate(self, vk_id, new_first_name, new_last_name):
-        candidate = self.session.query(Candidate).filter_by(vk_id=vk_id).first()
-        if candidate:
-            candidate.first_name = new_first_name
-            candidate.last_name = new_last_name
-            self.session.commit()
-
-    def check_candidate(self, user_vk_id, candidate_vk_id):
+    def check_partner(self, user_vk_id, partner_vk_id):
         in_favorites = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id,
-                                                              candidate_vk_id=candidate_vk_id).first()
+                                                              partner_vk_id=partner_vk_id).first()
         in_blacklist = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id,
-                                                               candidate_vk_id=candidate_vk_id).first()
+                                                               partner_vk_id=partner_vk_id).first()
         return bool(in_favorites or in_blacklist)
 
-    def add_to_favorites(self, user_vk_id, candidate_vk_id):
-        exists = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id).first()
+    def get_excluded_partner_ids(self, user_vk_id):
+        favorites = self.session.query(Favorite.partner_vk_id).filter_by(user_vk_id=user_vk_id).all()
+        blacklist = self.session.query(Blacklist.partner_vk_id).filter_by(user_vk_id=user_vk_id).all()
+        return [f[0] for f in favorites] + [b[0] for b in blacklist]
+
+    def add_to_favorites(self, user_vk_id, partner_vk_id):
+        exists = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id).first()
         if not exists:
-            favorite = Favorite(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id)
+            favorite = Favorite(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id)
             self.session.add(favorite)
             self.session.commit()
             return True
         return False
 
-    def add_to_blacklist(self, user_vk_id, candidate_vk_id):
-        exists = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id).first()
+    def add_to_blacklist(self, user_vk_id, partner_vk_id):
+        exists = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id).first()
         if not exists:
-            blacklist = Blacklist(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id)
+            blacklist = Blacklist(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id)
             self.session.add(blacklist)
             self.session.commit()
             return True
@@ -78,32 +112,34 @@ class DatabaseManager:
 
     def get_favorites(self, user_vk_id):
         favorites = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id).all()
-        return [fav.candidate for fav in favorites]
+        return [fav.partner for fav in favorites]
 
     def get_blacklist(self, user_vk_id):
         blacklist = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id).all()
-        return [blocked.candidate for blocked in blacklist]
+        return [blocked.partner for blocked in blacklist]
 
-    def delete_favorite(self, user_vk_id, candidate_vk_id):
-        fav = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id).first()
+    def delete_favorite(self, user_vk_id, partner_vk_id):
+        fav = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id).first()
         if fav:
             self.session.delete(fav)
             self.session.commit()
             return True
         return False
 
-    def delete_blacklist(self, user_vk_id, candidate_vk_id):
-        block = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id, candidate_vk_id=candidate_vk_id).first()
+    def delete_blacklist(self, user_vk_id, partner_vk_id):
+        block = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id).first()
         if block:
             self.session.delete(block)
             self.session.commit()
             return True
         return False
 
-    def add_photo(self, candidate_vk_id, url, likes_count):
-        new_photo = Photo(candidate_vk_id=candidate_vk_id, url=url, likes_count=likes_count)
-        self.session.add(new_photo)
-        self.session.commit()
+    def add_photo(self, owner_id, media_id, likes_count):
+        exists = self.session.query(Photo).filter_by(owner_id=owner_id, media_id=media_id).first()
+        if not exists:
+            new_photo = Photo(owner_id=owner_id, media_id=media_id, likes_count=likes_count)
+            self.session.add(new_photo)
+            self.session.commit()
 
 
 if __name__ == '__main__':
@@ -112,8 +148,7 @@ if __name__ == '__main__':
     DSN = os.getenv('DSN')
 
     if not DSN:
-        raise ValueError("DSN не найден! Убедитесь, что создали файл .env с переменной DSN.")
+        raise ValueError("DSN не найден")
 
     engine = sq.create_engine(DSN)
     db = DatabaseManager(engine)
-    print("Подключение к БД через .env прошло успешно!")

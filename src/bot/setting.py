@@ -27,22 +27,21 @@ class BotSetting(BotMessage, BotBase):
 
         try:
             current_time = datetime.now()
-
             user_birthday_datetime = datetime.strptime(user_data.bdate, "%d.%m.%Y")
             full_user_years = relativedelta(current_time, user_birthday_datetime).years
 
             setup_age_from = full_user_years
             setup_age_to = full_user_years
-        except (ValueError, TypeError, AttributeError):
+        except ValueError:
             setup_age_from = AGE_MIN_SEARCHING
             setup_age_to = AGE_DEF_MAX_SEARCHING
 
+        self.db.get_or_create_region(setup_region_id, setup_region_name)
+        self.db.get_or_create_city(setup_city_id, setup_city_name, setup_region_id)
+
         self.db.update_user_setting(
             user_id,
-            region_id=setup_region_id,
-            region_name=setup_region_name,
             city_id=setup_city_id,
-            city_name=setup_city_name,
             sex_index=setup_sex,
             age_from=setup_age_from,
             age_to=setup_age_to
@@ -74,15 +73,16 @@ class BotSetting(BotMessage, BotBase):
 
         region = regions[0]
 
-        self.db.update_user_setting(user_id, region_name=region.name, region_id=region.id)
+        self.db.get_or_create_region(region.id, region.name)
+        self.db.update_temp_setting(user_id, region_id=region.id)
 
         self._api.send_message(user_id, f"Для поиска был установлен регион {region.name} ✅")
 
         return True
 
     def _setup_city(self, user_id: int, message: str):
-        settings = self.db.get_user_settings(user_id)
-        region_id = settings.region_id if settings else None
+        temp_settings = self.db.get_temp_setting(user_id)
+        region_id = temp_settings.region_id if temp_settings else None
 
         cities = self._api.get_cities(message, region_id)
         if not cities:
@@ -92,7 +92,8 @@ class BotSetting(BotMessage, BotBase):
 
         city = cities[0]
 
-        self.db.update_user_setting(user_id, city_id=city.id, city_name=city.name)
+        self.db.get_or_create_city(city.id, city.name, region_id)
+        self.db.update_user_setting(user_id, city_id=city.id)
 
         self._api.send_message(user_id, f"Для поиска был установлен город {city.name} ✅")
 
@@ -106,7 +107,7 @@ class BotSetting(BotMessage, BotBase):
         if not age:
             return False
 
-        self.db.update_user_setting(user_id, age_from=age)
+        self.db.update_temp_setting(user_id, age_from=age)
 
         self._api.send_message(user_id, f"Был установлен {comment} {age} для поиска ✅")
 
@@ -120,8 +121,8 @@ class BotSetting(BotMessage, BotBase):
         if not age:
             return False
 
-        settings = self.db.get_user_settings(user_id)
-        age_from = settings.age_from if settings and settings.age_from else AGE_MIN_SEARCHING
+        temp_settings = self.db.get_temp_setting(user_id)
+        age_from = temp_settings.age_from if temp_settings and temp_settings.age_from else AGE_MIN_SEARCHING
 
         if age_from > age:
             warn_message = (f"Указан неверный {comment}. "
@@ -129,7 +130,7 @@ class BotSetting(BotMessage, BotBase):
             self._api.send_message(user_id, warn_message)
             return False
 
-        self.db.update_user_setting(user_id, age_to=age)
+        self.db.update_user_setting(user_id, age_from=age_from, age_to=age)
 
         self._api.send_message(user_id, f"Был установлен {comment} {age} для поиска ✅")
 

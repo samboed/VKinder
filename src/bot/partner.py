@@ -1,6 +1,6 @@
 from src.bot.base import BotBase
 from src.bot.constants import QTY_SEND_PROFILE_PHOTOS, QTY_SEND_MARK_PHOTOS
-from src.bot.formatters import get_profile_link, get_user_info_str
+from src.bot.formatters import get_profile_link, get_user_info_str, get_location_str
 from src.bot.keyboard import button_user_to_blacklist, payload_user_id_keyword, button_user_to_favorites, \
     button_main_menu
 from src.bot.message_processing import BotMessage
@@ -20,10 +20,13 @@ class BotPartner(BotMessage, BotBase):
         info_text = ''
         for person_num, candidate in enumerate(favorites, start=1):
             profile_link = get_profile_link(candidate.vk_id)
+            city_name = candidate.city.name if candidate.city else ""
+            region_name = candidate.region.name if candidate.region else ""
+            location = get_location_str(city_name, region_name)
 
             info_text += (
                 f"{f'{person_num}.':5} {candidate.first_name.capitalize()} {candidate.last_name.capitalize()}, "
-                f"{profile_link}\n")
+                f"{location} {profile_link}\n")
 
         if info_text:
             info_text = "Список избранных ❤️‍🔥:\n" + info_text
@@ -38,9 +41,13 @@ class BotPartner(BotMessage, BotBase):
         info_text = ''
         for person_num, candidate in enumerate(blacklist, start=1):
             profile_link = get_profile_link(candidate.vk_id)
+            city_name = candidate.city.name if candidate.city else ""
+            region_name = candidate.region.name if candidate.region else ""
+            location = get_location_str(city_name, region_name)
+
             info_text += (
                 f"{f'{person_num}.':5} {candidate.first_name.capitalize()} {candidate.last_name.capitalize()}, "
-                f"{profile_link}\n")
+                f"{location} {profile_link}\n")
 
         if info_text:
             info_text = "Стоп-лист 💔:\n" + info_text
@@ -102,27 +109,27 @@ class BotPartner(BotMessage, BotBase):
         comment = "порядковый номер профиля из избранных"
         return self.__del_person_from_table(user_id, message,
                                             self.db.get_favorites,
-                                            self.db.delete_favorite,  # Метод удаления из избранного
+                                            self.db.delete_favorite,
                                             comment, "из избранных ❤️‍🔥")
 
     def _del_blacklist_person(self, user_id: int, message: str):
         comment = "порядковый номер профиля из блэклиста"
         return self.__del_person_from_table(user_id, message,
                                             self.db.get_blacklist,
-                                            self.db.delete_blacklist,  # Метод удаления из ЧС
+                                            self.db.delete_blacklist,
                                             comment, "из блэклиста 💔")
 
     def _start_search(self, user_id: int):
         panther_data, panther_location, panther_photos = self.__search_new_panther(user_id)
 
-        panther_info = get_user_info_str(panther_data.user_id,
+        panther_info = get_user_info_str(panther_data.id,
                                          panther_data.first_name,
                                          panther_data.last_name,
                                          panther_location.city_name,
                                          panther_location.region_name)
 
-        button_user_to_blacklist.update_payload(payload_user_id_keyword, panther_data.user_id)
-        button_user_to_favorites.update_payload(payload_user_id_keyword, panther_data.user_id)
+        button_user_to_blacklist.update_payload(payload_user_id_keyword, panther_data.id)
+        button_user_to_favorites.update_payload(payload_user_id_keyword, panther_data.id)
 
         search_keyboard = Keyboard([[button_user_to_blacklist, button_user_to_favorites],
                                     [button_main_menu]])
@@ -142,18 +149,15 @@ class BotPartner(BotMessage, BotBase):
         age_from = settings.age_from
         age_to = settings.age_to
 
-        while True:
-            user_data = self._api.search_user(city_id, sex_ind, age_from, age_to)
-            if not self.db.check_candidate(user_id, user_data.user_id):
-                break
+        excluded_ids = self.db.get_excluded_partner_ids(user_id)
 
-        self.db.add_candidate(user_data.user_id, user_data.first_name, user_data.last_name)
+        user_data = self._api.search_user(city_id, sex_ind, age_from, age_to, excluded_ids)
 
-        user_profile_photos = self._api.get_photos(user_data.user_id, "profile")
+        user_profile_photos = self._api.get_photos(user_data.id, "profile")
         user_profile_photos.sort(key=lambda photo: photo.like_count, reverse=True)
         user_profile_photos = user_profile_photos[:QTY_SEND_PROFILE_PHOTOS]
 
-        user_mark_photos = self._api.get_user_mark_photos(user_data.user_id)
+        user_mark_photos = self._api.get_user_mark_photos(user_data.id)
         if user_mark_photos:
             user_mark_photos.sort(key=lambda photo: photo.like_count, reverse=True)
             user_mark_photos = user_mark_photos[:QTY_SEND_MARK_PHOTOS]
@@ -162,9 +166,6 @@ class BotPartner(BotMessage, BotBase):
 
         photos_list = user_profile_photos + user_mark_photos
         attachments = [photo.attachment for photo in photos_list]
-
-        for photo in photos_list:
-            self.db.add_photo(user_data.user_id, photo.attachment, photo.like_count)
 
         user_location = Location(city_id, city_name, region_id, region_name)
 
