@@ -3,8 +3,8 @@ from src.bot.constants import AGE_MIN_SEARCHING, AGE_MAX_SEARCHING
 
 
 class BotMessage(BotBase):
-    def __init__(self, group_token, user_token, group_id):
-        super().__init__(group_token, user_token, group_id)
+    def __init__(self, group_token, user_token, group_id, engine):
+        super().__init__(group_token, user_token, group_id, engine)
 
     def _process_age_from_message(self, user_id: int, message: str, comment: str):
         filtered_message = message.strip()
@@ -34,4 +34,4 @@ class BotMessage(BotBase):
                                              f"Порядковый номер должен быть указан числом. "
                                              f"Попробуйте ещё раз❗")
             return False
-        return filtered_message
+        return int(filtered_message)

@@ -1,4 +1,5 @@
 from src.vk_api.types import Sex
+from src.bot.utils import get_full_age
 
 
 def get_sex_str(sex_index: int):
@@ -28,14 +29,16 @@ def get_location_str(city_name: str, region_name: str = ''):
 def get_profile_link(user_id: int):
     return f"https://vk.com/id{user_id}"
 
-
-def get_user_info_str(user_id: int, first_name: str, last_name: str,
-                      city_name: str = '', region_name: str = ''):
+def get_user_info_str(user_id: int, first_name: str, last_name: str, bdate: str,
+                      city_name: str = '', region_name: str = '', newline_link=True):
     profile_link = get_profile_link(user_id)
+    location = get_location_str(city_name, region_name)
+    age = get_full_age(bdate)
 
-    location_str = get_location_str(city_name, region_name)
+    info_text = f"{first_name} {last_name}, {age}, {location}"
 
-    info_text = (f"{first_name} {last_name}, {location_str}\n"
-                 f"{profile_link}")
+    if newline_link:
+        return info_text + f"\n{profile_link}"
 
-    return info_text
+    return info_text +  f" {profile_link}"
+

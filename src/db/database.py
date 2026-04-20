@@ -57,7 +57,7 @@ class PartnerInfo(Base):
     vk_id: Mapped[int] = mapped_column(sq.BigInteger, primary_key=True)
     first_name: Mapped[str] = mapped_column(sq.String(50))
     last_name: Mapped[str] = mapped_column(sq.String(50))
-    age: Mapped[int] = mapped_column(sq.Integer, nullable=True)
+    bdate: Mapped[str] = mapped_column(sq.String(10))
     city_id: Mapped[int] = mapped_column(sq.ForeignKey('cities.id'), nullable=True)
     region_id: Mapped[int] = mapped_column(sq.ForeignKey('regions.id'), nullable=True)
 
@@ -85,14 +85,17 @@ class Blacklist(Base):
 
 class Photo(Base):
     __tablename__ = 'photos'
-    id: Mapped[int] = mapped_column(sq.Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(sq.BigInteger, primary_key=True)
+    vk_id: Mapped[int] = mapped_column(sq.ForeignKey('partner_info.vk_id'))
     media_id: Mapped[int] = mapped_column(sq.Integer)
-    owner_id: Mapped[int] = mapped_column(sq.ForeignKey('partner_info.vk_id'))
-    likes_count: Mapped[int] = mapped_column(sq.Integer)
+    owner_id: Mapped[int] = mapped_column(sq.Integer)
 
     partner: Mapped["PartnerInfo"] = relationship(backref='photos')
 
 
 def create_tables(engine):
-    Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+
+
+def drop_tables(engine):
+    Base.metadata.drop_all(engine)

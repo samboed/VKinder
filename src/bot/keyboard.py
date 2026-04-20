@@ -3,6 +3,7 @@ from src.vk_api.types import Sex, ButtonTypes, ButtonColorTypes
 
 payload_command_keyword = "command"
 payload_user_id_keyword = "user_id"
+payload_candidate_data_keyword = "candidate_data"
 payload_value_keyword = "value"
 
 command_add_sex_prefer = "add_sex_prefer"

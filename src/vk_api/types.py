@@ -3,13 +3,23 @@ from collections import namedtuple
 from enum import Enum, StrEnum
 
 
+User = namedtuple('User',
+                  ["id", "first_name", "last_name", "city", "bdate", "sex_index", "is_closed"],
+                  defaults='')
+
+
 Attachment = namedtuple('Attachment',
-                        ["type", "owner_id", "media_id", "access_key"],
-                        defaults=None)
+                        ["type", "owner_id", "media_id"],
+                        defaults='')
 
 
-Photo = namedtuple('Photo',
-                          ["attachment", "like_count"])
+Photo = namedtuple('Photo',["attachment", "like_count"])
+
+
+Region = namedtuple("Region", ["id", "name"])
+
+
+City = namedtuple("City", ["id", "name", "area", "region"], defaults='')
 
 
 class Events(Enum):

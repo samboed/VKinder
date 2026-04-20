@@ -1,7 +1,4 @@
-from datetime import datetime
-
-from dateutil.relativedelta import relativedelta
-
+from src.bot.utils import get_full_age
 from src.bot.base import BotBase
 from src.bot.constants import AGE_MIN_SEARCHING, AGE_DEF_MAX_SEARCHING
 from src.bot.formatters import get_sex_str, get_age_range_str, get_location_str
@@ -9,8 +6,8 @@ from src.bot.message_processing import BotMessage
 
 
 class BotSetting(BotMessage, BotBase):
-    def __init__(self, group_token, user_token, group_id):
-        super().__init__(group_token, user_token, group_id)
+    def __init__(self, group_token, user_token, group_id, engine):
+        super().__init__(group_token, user_token, group_id, engine)
 
     def _setup_and_show_init_settings(self, user_id: int):
         user_data = self._api.get_info_about_user(user_id)
@@ -25,31 +22,26 @@ class BotSetting(BotMessage, BotBase):
         setup_city_name = user_data.city.name
         setup_sex = user_data.sex_index % 2 + 1
 
-        try:
-            current_time = datetime.now()
-            user_birthday_datetime = datetime.strptime(user_data.bdate, "%d.%m.%Y")
-            full_user_years = relativedelta(current_time, user_birthday_datetime).years
-
-            setup_age_from = full_user_years
-            setup_age_to = full_user_years
-        except ValueError:
+        user_age = get_full_age(user_data.bdate)
+        if user_age:
+            setup_age_from = user_age
+            setup_age_to = user_age
+        else:
             setup_age_from = AGE_MIN_SEARCHING
             setup_age_to = AGE_DEF_MAX_SEARCHING
 
-        self.db.get_or_create_region(setup_region_id, setup_region_name)
-        self.db.get_or_create_city(setup_city_id, setup_city_name, setup_region_id)
+        self._db.get_or_create_region(setup_region_id, setup_region_name)
+        self._db.get_or_create_city(setup_city_id, setup_city_name, setup_region_id)
 
-        self.db.update_user_setting(
-            user_id,
-            city_id=setup_city_id,
-            sex_index=setup_sex,
-            age_from=setup_age_from,
-            age_to=setup_age_to
-        )
+        self._db.update_user_setting(user_id,
+                                     city_id=setup_city_id,
+                                     sex_index=setup_sex,
+                                     age_from=setup_age_from,
+                                     age_to=setup_age_to)
 
+        location_info = get_location_str(setup_city_name, setup_region_name)
         sex_name = get_sex_str(setup_sex)
         age_info = get_age_range_str(setup_age_from, setup_age_to)
-        location_info = get_location_str(setup_city_name, setup_region_name)
 
         info_text = (f"Были установлены следующие настройки для поиска 🔍\n"
                      f"Город: {location_info}\n"
@@ -59,7 +51,7 @@ class BotSetting(BotMessage, BotBase):
         self._api.send_message(user_id, info_text)
 
     def _setup_sex(self, user_id: int, sex_index: int):
-        self.db.update_user_setting(user_id, sex_index=sex_index)
+        self._db.update_user_setting(user_id, sex_index=sex_index)
 
         sex_name = get_sex_str(sex_index)
         self._api.send_message(user_id, f"Был установлен пол для поиска - {sex_name}")
@@ -71,18 +63,25 @@ class BotSetting(BotMessage, BotBase):
                                             f"Попробуйте ещё раз, переформулировав название❗")
             return False
 
-        region = regions[0]
+        target_region = regions[0]
 
-        self.db.get_or_create_region(region.id, region.name)
-        self.db.update_temp_setting(user_id, region_id=region.id)
+        self._db.get_or_create_region(target_region.id, target_region.name)
+        self._db.update_temp_setting(user_id, region_id=target_region.id)
 
-        self._api.send_message(user_id, f"Для поиска был установлен регион {region.name} ✅")
+        self._api.send_message(user_id, f"Был сохранён регион {target_region.name},"
+                                        f"чтобы его использовать в поиске, необходимо "
+                                        f"указать город 💾")
 
         return True
 
     def _setup_city(self, user_id: int, message: str):
-        temp_settings = self.db.get_temp_setting(user_id)
-        region_id = temp_settings.region_id if temp_settings else None
+        temp_settings = self._db.get_temp_setting(user_id)
+
+        region_id = None
+        region_name = ''
+        if temp_settings:
+            region_id = temp_settings.region_id
+            region_name = self._db.get_or_create_region(region_id).name
 
         cities = self._api.get_cities(message, region_id)
         if not cities:
@@ -90,12 +89,14 @@ class BotSetting(BotMessage, BotBase):
                                             f"Попробуйте ещё раз, переформулировав название❗")
             return False
 
-        city = cities[0]
+        target_city = cities[0]
 
-        self.db.get_or_create_city(city.id, city.name, region_id)
-        self.db.update_user_setting(user_id, city_id=city.id)
+        self._db.get_or_create_city(target_city.id, target_city.name, region_id)
+        self._db.update_user_setting(user_id, city_id=target_city.id)
 
-        self._api.send_message(user_id, f"Для поиска был установлен город {city.name} ✅")
+        location = get_location_str(target_city.name, region_name)
+
+        self._api.send_message(user_id, f"Для поиска был установлен {location} ✅")
 
         return True
 
@@ -107,31 +108,38 @@ class BotSetting(BotMessage, BotBase):
         if not age:
             return False
 
-        self.db.update_temp_setting(user_id, age_from=age)
+        self._db.update_temp_setting(user_id, age_from=age)
 
-        self._api.send_message(user_id, f"Был установлен {comment} {age} для поиска ✅")
+        self._api.send_message(user_id, f"Был сохранён {comment} {age}, "
+                                        f"чтобы его использовать в поиске необходимо, "
+                                        f"указать максимальный возраст 💾")
 
         return True
 
     def _setup_age_to(self, user_id: int, message: str):
-        comment = "максимальный возраст"
+        comment_age_from = "минимальный возраст"
+        comment_age_to = "максимальный возраст"
 
-        age = self._process_age_from_message(user_id, message, comment)
+        age = self._process_age_from_message(user_id, message, comment_age_to)
 
         if not age:
             return False
 
-        temp_settings = self.db.get_temp_setting(user_id)
-        age_from = temp_settings.age_from if temp_settings and temp_settings.age_from else AGE_MIN_SEARCHING
+        temp_settings = self._db.get_temp_setting(user_id)
+
+        age_from = AGE_MIN_SEARCHING
+        if temp_settings and temp_settings.age_from:
+            age_from = temp_settings.age_from
 
         if age_from > age:
-            warn_message = (f"Указан неверный {comment}. "
-                            f"Возраст {age} не может быть меньше минимального {age_from}")
+            warn_message = (f"Указан неверный {comment_age_to}. "
+                            f"Возраст {age} не может быть меньше минимального {age_from}❗")
             self._api.send_message(user_id, warn_message)
             return False
 
-        self.db.update_user_setting(user_id, age_from=age_from, age_to=age)
+        self._db.update_user_setting(user_id, age_from=age_from, age_to=age)
 
-        self._api.send_message(user_id, f"Был установлен {comment} {age} для поиска ✅")
+        self._api.send_message(user_id, f"Были установлены {comment_age_from} {age_from} "
+                                        f"и {comment_age_to} {age} для поиска ✅")
 
         return True

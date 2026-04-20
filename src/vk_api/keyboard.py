@@ -106,5 +106,5 @@ class Keyboard:
                 "inline": self.__inline,
                 "buttons": buttons_list
             }
-            return js.dumps(keyboard_structure)
+            return js.dumps(keyboard_structure, separators=(',', ':'))
         return ''

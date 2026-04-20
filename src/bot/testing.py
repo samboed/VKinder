@@ -1,9 +1,0 @@
-dialog_states = {} #TODO: delete it and get state from db
-is_new_user = True  # TODO: for testing
-region_name = '' # TODO: for testing
-reg_id = None # TODO: for testing
-city_id = None # TODO: for testing
-city_name = '' # TODO: for testing
-sex_ind = None # TODO: for testing
-age_from = None # TODO: for testing
-age_to = None # TODO: for testing

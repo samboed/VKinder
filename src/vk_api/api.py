@@ -2,11 +2,10 @@ import random
 import requests
 import json
 
-from collections import namedtuple
 from urllib.parse import urljoin
 
 from src.vk_api.keyboard import Keyboard
-from src.vk_api.types import Attachment, Photo, Events
+from src.vk_api.types import User, Attachment, Photo, Region, City, Events
 
 URL_BASE = "https://api.vk.ru/method/"
 
@@ -15,7 +14,7 @@ VK_API_VERSION = "5.199"
 
 class API:
     def __init__(self, group_token: str, user_token: str, group_id: int):
-        self.__def_headers = {"Authorization": group_token}
+        self.__def_headers = {"Authorization": "Bearer " + group_token}
         self.__user_token = user_token
         self.__group_id = group_id
 
@@ -53,7 +52,7 @@ class API:
         return server, key, ts
 
     def get_attachment_photo(self, user_id: int, media_id: int):
-        return Attachment("photo", user_id, media_id, self.__user_token)
+        return Attachment("photo", user_id, media_id)
 
     def polling_events(self):
         server, key, ts = self.__set_long_poll_server_session()
@@ -103,8 +102,8 @@ class API:
                     attachment_text += str(attachment.owner_id)
                 if attachment.media_id:
                     attachment_text += '_' + str(attachment.media_id)
-                if attachment.access_key:
-                    attachment_text += '_' + attachment.access_key
+
+                attachment_text += '_' + self.__user_token
 
                 attachments_list.append(attachment_text)
 
@@ -143,8 +142,6 @@ class API:
 
         regions_json_data = response.json()["response"]
 
-        Region = namedtuple("Region", ["id", "name"])
-
         regions = []
         for region_item in regions_json_data["items"]:
             regions.append(Region(region_item["id"], region_item["title"]))
@@ -166,15 +163,11 @@ class API:
         if region_id:
             params["region_id"] = region_id
 
-
-
         response = requests.get(url, params)
 
         # TODO: add handle errors
 
         cities_json_data = response.json()["response"]
-
-        City = namedtuple("City", ["id", "name", "area", "region"], defaults='')
 
         cities = []
         for city_item in cities_json_data["items"]:
@@ -221,11 +214,9 @@ class API:
         sex_index = user_json_data["sex"]
         is_closed = user_json_data["is_closed"]
 
-        City = namedtuple("City", ["id", "name"])
-        User = namedtuple('User',
-                          ["first_name", "last_name", "city", "bdate", "sex_index", "is_closed"])
-
-        user_data = User(first_name, last_name, City(city_id, city_name), birthday_date, sex_index, is_closed)
+        user_data = User(user_id, first_name, last_name,
+                         City(city_id, city_name, '', ''),
+                         birthday_date, sex_index, is_closed)
 
         return user_data
 
@@ -284,7 +275,7 @@ class API:
 
         return photos_list
 
-    def search_user(self, city_id: int, sex_index: int, age_from: int, age_to: int):
+    def search_user(self, city_id: int, sex_index: int, age_from: int, age_to: int, offset_search = 0):
         url = urljoin(URL_BASE, "users.search")
 
         params = {
@@ -293,9 +284,11 @@ class API:
             "sex": sex_index,
             "age_from": age_from,
             "age_to": age_to,
+            "offset": offset_search,
+            "count": 1000,
+            "fields": "bdate",
             "is_closed": False,
             "status": 6,
-            "count": 1000,
             "v": VK_API_VERSION
         }
 
@@ -303,15 +296,14 @@ class API:
 
         # TODO: add handle errors
 
-        searched_user_json_data = response.json()["response"]['items'][random.randint(0, 100)]
+        searched_users_json_data = response.json()["response"]['items']
 
-        user_id = searched_user_json_data["id"]
-        first_name = searched_user_json_data["first_name"]
-        last_name = searched_user_json_data["last_name"]
+        users = []
+        for searched_user_json_data in searched_users_json_data:
+            user_id = searched_user_json_data["id"]
+            first_name = searched_user_json_data["first_name"]
+            last_name = searched_user_json_data["last_name"]
+            bdate = searched_user_json_data["bdate"]
+            users.append(User(user_id, first_name, last_name, '', bdate, '', ''))
 
-        User = namedtuple('User',
-                          ["id", "first_name", "last_name"])
-
-        user = User(user_id, first_name, last_name)
-
-        return user
+        return users

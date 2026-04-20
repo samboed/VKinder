@@ -10,36 +10,38 @@ from src.bot.partner import BotPartner
 
 
 class BotShow(BotPartner, BotMessage, BotBase):
+    def __init__(self, group_token, user_token, group_id, engine):
+        super().__init__(group_token, user_token, group_id, engine)
+
     def _show_main_menu(self, user_id: int):
         self._api.send_message(user_id, MAIN_MENU_TEXT, main_menu_keyboard)
 
     def __show_partner_photos(self, user_id: int, message: str, comment: str, get_list_func):
-        favorite_num = self._process_digit_from_message(user_id, message, comment)
+        partner_num = self._process_digit_from_message(user_id, message, comment)
 
-        if not favorite_num:
+        if not partner_num:
             return False
 
         people_list = get_list_func(user_id)
 
-        if favorite_num < 1 or favorite_num > len(people_list):
+        if partner_num < 1 or partner_num > len(people_list):
             self._api.send_message(user_id, "Пользователя с таким номером нет в списке❗")
             return False
 
-        candidate = people_list[favorite_num - 1]
+        partner = people_list[partner_num - 1]
 
-        city_name = candidate.city.name if candidate.city else ""
-        region_name = candidate.region.name if candidate.region else ""
+        city_name = partner.city.name if partner.city else ""
+        region_name = partner.region.name if partner.region else ""
 
-        user_info = get_user_info_str(candidate.vk_id,
-                                      candidate.first_name,
-                                      candidate.last_name,
-                                      city_name=city_name,
-                                      region_name=region_name)
+        user_info = get_user_info_str(partner.vk_id,
+                                      partner.first_name,
+                                      partner.last_name,
+                                      partner.bdate,
+                                      city_name,
+                                      region_name)
 
-        photo_attachments = [
-            self._api.get_attachment_photo(photo.owner_id, photo.media_id)
-            for photo in candidate.photos
-        ]
+        photo_attachments = [self._api.get_attachment_photo(photo.owner_id, photo.media_id)
+                             for photo in partner.photos]
 
         self._api.send_message(user_id, user_info, attachments=photo_attachments)
 
@@ -47,39 +49,48 @@ class BotShow(BotPartner, BotMessage, BotBase):
 
     def _show_favorite_photos(self, user_id: int, message: str):
         comment = "порядковый номер профиля из избранных"
-        return self.__show_partner_photos(user_id, message, comment, self.db.get_favorites)
+        return self.__show_partner_photos(user_id, message, comment, self._db.get_favorites)
 
     def _show_blacklist_person_photos(self, user_id: int, message: str):
         comment = "порядковый номер профиля из блэклиста"
-        return self.__show_partner_photos(user_id, message, comment, self.db.get_blacklist)
+        return self.__show_partner_photos(user_id, message, comment, self._db.get_blacklist)
 
     def _show_favorites(self, user_id: int):
-        favorites_info = self._get_general_people_info_from_favorites(user_id)
+        favorites_info, res_get_partners_info = self._get_partners_info_from_favorites(user_id)
+        if not res_get_partners_info:
+            self._api.send_message(user_id, favorites_info)
+            self._show_main_menu(user_id)
+            return False
+
         self._api.send_message(user_id, favorites_info,
                                favorites_keyboard)
 
+        return True
+
     def _show_blacklist(self, user_id: int):
-        blacklist_info = self._get_general_people_info_from_blacklist(user_id)
+        blacklist_info, res_get_partners_info = self._get_partners_info_from_blacklist(user_id)
+        if not res_get_partners_info:
+            self._api.send_message(user_id, blacklist_info)
+            self._show_main_menu(user_id)
+            return False
+
         self._api.send_message(user_id, blacklist_info,
                                blacklist_keyboard)
 
+        return True
+
     def _show_settings(self, user_id: int):
-        settings = self.db.get_user_settings(user_id)
+        settings = self._db.get_user_settings(user_id)
 
-        city_name = ""
-        region_name = ""
-        sex_index = 0
-        age_from = 0
-        age_to = 0
-
-        if settings:
-            sex_index = settings.sex_index or 0
-            age_from = settings.age_from or 0
-            age_to = settings.age_to or 0
-            if settings.city:
-                city_name = settings.city.name
-                if settings.city.region:
-                    region_name = settings.city.region.name
+        sex_index = settings.sex_index
+        age_from = settings.age_from
+        age_to = settings.age_to
+        city_name = ''
+        region_name = ''
+        if settings.city:
+            city_name = settings.city.name
+            if settings.city.region:
+                region_name = settings.city.region.name
 
         sex_name = get_sex_str(sex_index)
         age_info = get_age_range_str(age_from, age_to)

@@ -4,7 +4,7 @@ import sqlalchemy as sq
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
-from src.database import User, PartnerInfo, Favorite, Blacklist, UserSetting, TempSetting, Photo, Region, City
+from src.db.database import User, PartnerInfo, Favorite, Blacklist, UserSetting, TempSetting, Photo, Region, City
 
 
 class DatabaseManager:
@@ -20,9 +20,6 @@ class DatabaseManager:
 
             new_settings = UserSetting(user_vk_id=vk_id)
             self.session.add(new_settings)
-
-            new_temp_settings = TempSetting(user_vk_id=vk_id)
-            self.session.add(new_temp_settings)
 
             self.session.commit()
             return True
@@ -64,14 +61,14 @@ class DatabaseManager:
             self.session.commit()
         return city
 
-    def add_partner(self, vk_id, first_name, last_name, age, city_id, region_id):
+    def add_partner(self, vk_id, first_name, last_name, bdate, city_id, region_id):
         partner = self.session.query(PartnerInfo).filter_by(vk_id=vk_id).first()
         if not partner:
             new_partner = PartnerInfo(
                 vk_id=vk_id,
                 first_name=first_name,
                 last_name=last_name,
-                age=age,
+                bdate=bdate,
                 city_id=city_id,
                 region_id=region_id
             )
@@ -90,7 +87,7 @@ class DatabaseManager:
     def get_excluded_partner_ids(self, user_vk_id):
         favorites = self.session.query(Favorite.partner_vk_id).filter_by(user_vk_id=user_vk_id).all()
         blacklist = self.session.query(Blacklist.partner_vk_id).filter_by(user_vk_id=user_vk_id).all()
-        return [f[0] for f in favorites] + [b[0] for b in blacklist]
+        return [f.partner_vk_id for f in favorites] + [b.partner_vk_id for b in blacklist]
 
     def add_to_favorites(self, user_vk_id, partner_vk_id):
         exists = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id).first()
@@ -134,10 +131,10 @@ class DatabaseManager:
             return True
         return False
 
-    def add_photo(self, owner_id, media_id, likes_count):
-        exists = self.session.query(Photo).filter_by(owner_id=owner_id, media_id=media_id).first()
+    def add_photo(self, vk_id, owner_id, media_id):
+        exists = self.session.query(Photo).filter_by(vk_id=vk_id, owner_id=owner_id, media_id=media_id).first()
         if not exists:
-            new_photo = Photo(owner_id=owner_id, media_id=media_id, likes_count=likes_count)
+            new_photo = Photo(vk_id=vk_id, owner_id=owner_id, media_id=media_id)
             self.session.add(new_photo)
             self.session.commit()
 
