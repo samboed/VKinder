@@ -87,23 +87,23 @@ class BotPartner(BotMessage, BotBase):
 
         return True
 
-    def __del_person_from_table(self, user_id: int, message: str,
-                                get_partners_func, del_person_from_db_func,
-                                comment: str, postfix_comment: str):
-        person_num = self._process_digit_from_message(user_id, message, comment)
+    def __del_partner_from_table(self, user_id: int, message: str,
+                                 get_partners_func, del_person_from_db_func,
+                                 comment: str, postfix_comment: str):
+        partner_num = self._process_digit_from_message(user_id, message, comment)
 
-        if not person_num:
+        if partner_num is False:
             return False
 
         partners = get_partners_func(user_id)
 
-        if person_num < 1 or person_num > len(partners):
+        if partner_num < 1 or partner_num > len(partners):
             self._api.send_message(user_id, f"Указан неверный {comment}. "
-                                            f"Пользователя с номером {person_num} нет в списке. "
+                                            f"Пользователя с номером {partner_num} нет в списке. "
                                             f"Попробуйте ещё раз❗")
             return False
 
-        partner = partners[person_num - 1]
+        partner = partners[partner_num - 1]
         first_name = partner.first_name
         last_name = partner.last_name
 
@@ -114,17 +114,17 @@ class BotPartner(BotMessage, BotBase):
 
     def _del_favorite(self, user_id: int, message: str):
         comment = "порядковый номер профиля из избранных"
-        return self.__del_person_from_table(user_id, message,
-                                            self._db.get_favorites,
-                                            self._db.delete_favorite,
-                                            comment, "из избранных ❤️‍🔥")
+        return self.__del_partner_from_table(user_id, message,
+                                             self._db.get_favorites,
+                                             self._db.delete_favorite,
+                                             comment, "из избранных ❤️‍🔥")
 
     def _del_blacklist_person(self, user_id: int, message: str):
         comment = "порядковый номер профиля из блэклиста"
-        return self.__del_person_from_table(user_id, message,
-                                            self._db.get_blacklist,
-                                            self._db.delete_blacklist,
-                                            comment, "из блэклиста 💔")
+        return self.__del_partner_from_table(user_id, message,
+                                             self._db.get_blacklist,
+                                             self._db.delete_blacklist,
+                                             comment, "из блэклиста 💔")
 
     def _save_candidate(self, user_id: int, payload: dict, add_candidate_to_db_func):
         partner, partner_photos = self.__unpack_candidate_payload(payload)

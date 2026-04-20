@@ -19,7 +19,7 @@ class BotShow(BotPartner, BotMessage, BotBase):
     def __show_partner_photos(self, user_id: int, message: str, comment: str, get_list_func):
         partner_num = self._process_digit_from_message(user_id, message, comment)
 
-        if not partner_num:
+        if partner_num is False:
             return False
 
         people_list = get_list_func(user_id)
