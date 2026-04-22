@@ -40,8 +40,11 @@ class BotSetting(BotMessage, BotBase):
             setup_age_from = AGE_MIN_SEARCHING
             setup_age_to = AGE_DEF_MAX_SEARCHING
 
-        self._db.get_or_create_region(setup_region_id, setup_region_name)
-        self._db.get_or_create_city(setup_city_id, setup_city_name, setup_region_id)
+        if not self._db.get_region(setup_region_id):
+            self._db.add_region(setup_region_id, setup_region_name)
+
+        if not self._db.get_city(setup_city_id):
+            self._db.add_city(setup_city_id, setup_city_name, setup_region_id)
 
         self._db.update_user_setting(user_id,
                                      city_id=setup_city_id,
@@ -81,7 +84,9 @@ class BotSetting(BotMessage, BotBase):
 
         target_region = res_get_regions[0]
 
-        self._db.get_or_create_region(target_region.id, target_region.name)
+        if not self._db.get_region(target_region.id):
+            self._db.add_region(target_region.id, target_region.name)
+
         self._db.update_temp_setting(user_id, region_id=target_region.id)
 
         self._api.send_message(user_id, f"Был сохранён регион {target_region.name},"
@@ -95,9 +100,11 @@ class BotSetting(BotMessage, BotBase):
 
         region_id = None
         region_name = ''
-        if temp_settings:
+        if temp_settings and temp_settings.region_id:
             region_id = temp_settings.region_id
-            region_name = self._db.get_or_create_region(region_id).name
+            region = self._db.get_region(region_id)
+            if region:
+                region_name = region.name
 
         res_get_cities = self._api.get_cities(message, region_id)
         if res_get_cities is False:
@@ -111,7 +118,9 @@ class BotSetting(BotMessage, BotBase):
 
         target_city = res_get_cities[0]
 
-        self._db.get_or_create_city(target_city.id, target_city.name, region_id)
+        if not self._db.get_city(target_city.id):
+            self._db.add_city(target_city.id, target_city.name, region_id)
+
         self._db.update_user_setting(user_id, city_id=target_city.id)
 
         location = get_location_str(target_city.name, region_name)
