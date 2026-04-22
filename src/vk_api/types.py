@@ -16,6 +16,9 @@ Attachment = namedtuple('Attachment',
 Photo = namedtuple('Photo',["attachment", "like_count"])
 
 
+EventAnswer = namedtuple('Event', ["user_id", "event_id", "peer_id"])
+
+
 Region = namedtuple("Region", ["id", "name"])
 
 

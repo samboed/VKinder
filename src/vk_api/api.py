@@ -1,15 +1,24 @@
 import random
-import requests
+import sys
 import json
 
 from urllib.parse import urljoin
 
 from src.vk_api.keyboard import Keyboard
-from src.vk_api.types import User, Attachment, Photo, Region, City, Events
+from src.vk_api.service import process_get_request
+from src.vk_api.types import User, Attachment, Photo, Region, City, EventAnswer, Events
+from src.vk_api.logger import init_logger
+
 
 URL_BASE = "https://api.vk.ru/method/"
 
 VK_API_VERSION = "5.199"
+
+MAX_BAD_POLLING_REQUEST = 5
+
+
+def get_attachment_photo(user_id: int, media_id: int):
+    return Attachment("photo", user_id, media_id)
 
 
 class API:
@@ -18,9 +27,11 @@ class API:
         self.__user_token = user_token
         self.__group_id = group_id
 
+        init_logger()
 
     def __setup_long_poll_server_session(self):
         url = urljoin(URL_BASE, "groups.setLongPollSettings")
+
         params = {
             "group_id": self.__group_id,
             "v": VK_API_VERSION,
@@ -28,22 +39,25 @@ class API:
             "message_new": 1,
             "message_event": 1
         }
-        response = requests.get(url, headers=self.__def_headers, params=params)
 
-        # TODO: add handle errors
+        return process_get_request(url, params, self.__def_headers)
 
     def __set_long_poll_server_session(self):
+        if not self.__setup_long_poll_server_session():
+            return False
+
         url = urljoin(URL_BASE, "groups.getLongPollServer")
+
         params = {
             "group_id": self.__group_id,
             "v": VK_API_VERSION
         }
 
-        response = requests.get(url, headers=self.__def_headers, params=params)
+        response_json_data = process_get_request(url, params, self.__def_headers)
+        if not response_json_data:
+            return False
 
-        # TODO: add handle errors
-
-        session_json_data = response.json()["response"]
+        session_json_data = response_json_data["response"]
 
         server = session_json_data["server"]
         key = session_json_data["key"]
@@ -51,34 +65,54 @@ class API:
 
         return server, key, ts
 
-    def get_attachment_photo(self, user_id: int, media_id: int):
-        return Attachment("photo", user_id, media_id)
-
     def polling_events(self):
-        server, key, ts = self.__set_long_poll_server_session()
-        while True:
+        res_set_long_poll_server_session = self.__set_long_poll_server_session()
+        if not res_set_long_poll_server_session:
+            sys.exit(1)
+
+        server, key, ts = res_set_long_poll_server_session
+
+        rest_try_polling_request = MAX_BAD_POLLING_REQUEST
+        while rest_try_polling_request:
             url = f"{server}?act=a_check&key={key}&ts={ts}&wait=25&mode=8&version=2"
-            response = requests.get(url)
-            data = response.json()
-            ts = data["ts"]
-            updates = data["updates"]
+
+            response_json_data = process_get_request(url)
+            if not response_json_data:
+                if not rest_try_polling_request:
+                    sys.exit(1)
+
+                rest_try_polling_request -= 1
+
+                continue
+
+            rest_try_polling_request = MAX_BAD_POLLING_REQUEST
+
+            ts = response_json_data["ts"]
+
+            updates = response_json_data["updates"]
             for update in updates:
                 event_type = update["type"]
+
                 if event_type == "message_event":
                     user_id = update["object"]["user_id"]
                     event_id = update["object"]["event_id"]
                     peer_id = update["object"]["peer_id"]
                     payload = update["object"]["payload"]
-                    self.__send_message_event_answer(event_id, user_id, peer_id)
-                    yield Events.PUSH_BUTTON, user_id, payload
+
+                    event_answer = EventAnswer(user_id, event_id, peer_id)
+
+                    yield Events.PUSH_BUTTON, user_id, payload, event_answer
+
                 elif event_type == "message_new":
                     message = update["object"]["message"]
                     user_id = message["from_id"]
+
                     if "payload" in message:
                         payload = json.loads(message["payload"])
-                        yield Events.PUSH_BUTTON, user_id, payload
+                        yield Events.PUSH_BUTTON, user_id, payload, None
+
                     message_text = message["text"]
-                    yield Events.SEND_MESSAGE, user_id, message_text
+                    yield Events.SEND_MESSAGE, user_id, message_text, None
 
     def send_message(self, user_id: int, message: str,
                      keyboard: Keyboard = None, attachments: list[Attachment] = None):
@@ -109,23 +143,19 @@ class API:
 
             params["attachment"] = ",".join(attachments_list)
 
-        response = requests.get(url, params, headers=self.__def_headers)
+        return process_get_request(url, params, self.__def_headers)
 
-        # TODO: add handle errors
-
-    def __send_message_event_answer(self, event_id: int, user_id:int, peer_id:int):
+    def send_message_event_answer(self, event_answer: EventAnswer):
         url = urljoin(URL_BASE, "messages.sendMessageEventAnswer")
 
         params = {
-            "event_id": event_id,
-            "user_id": user_id,
-            "peer_id": peer_id,
+            "user_id": event_answer.user_id,
+            "event_id": event_answer.event_id,
+            "peer_id": event_answer.peer_id,
             "v": VK_API_VERSION
         }
 
-        response = requests.get(url, params, headers=self.__def_headers)
-
-        # TODO: add handle errors
+        return process_get_request(url, params, self.__def_headers)
 
     def get_regions(self, region_name: str):
         url = urljoin(URL_BASE, "database.getRegions")
@@ -136,11 +166,11 @@ class API:
             "v": VK_API_VERSION
         }
 
-        response = requests.get(url, params)
+        response_json_data = process_get_request(url, params=params)
+        if not response_json_data:
+            return False
 
-        # TODO: add handle errors
-
-        regions_json_data = response.json()["response"]
+        regions_json_data = response_json_data["response"]
 
         regions = []
         for region_item in regions_json_data["items"]:
@@ -163,11 +193,11 @@ class API:
         if region_id:
             params["region_id"] = region_id
 
-        response = requests.get(url, params)
+        response_json_data = process_get_request(url, params=params)
+        if not response_json_data:
+            return False
 
-        # TODO: add handle errors
-
-        cities_json_data = response.json()["response"]
+        cities_json_data = response_json_data["response"]
 
         cities = []
         for city_item in cities_json_data["items"]:
@@ -187,7 +217,6 @@ class API:
 
         return cities
 
-
     def get_info_about_user(self, user_id: int):
         url = urljoin(URL_BASE, "users.get")
 
@@ -197,11 +226,11 @@ class API:
             "v": VK_API_VERSION
         }
 
-        response = requests.get(url, params, headers=self.__def_headers)
+        response_json_data = process_get_request(url, params, self.__def_headers)
+        if not response_json_data:
+            return False
 
-        # TODO: add handle errors
-
-        user_json_data = response.json()["response"][0]
+        user_json_data = response_json_data["response"][0]
 
         first_name = user_json_data["first_name"]
         last_name = user_json_data["last_name"]
@@ -232,19 +261,17 @@ class API:
             "v": VK_API_VERSION
         }
 
-        response = requests.get(url, params)
+        response_json_data = process_get_request(url, params=params)
+        if not response_json_data:
+            return False
 
-        # TODO: add handle errors
-        if "error" in response.json():
-            return []
-
-        photos_json_data = response.json()["response"]["items"]
+        photos_json_data = response_json_data["response"]["items"]
 
         photos_list = []
         for item in photos_json_data:
             qty_likes = item["likes"]["count"]
             photo_id = item["id"]
-            photos_list.append(Photo(self.get_attachment_photo(owner_id, photo_id), qty_likes))
+            photos_list.append(Photo(get_attachment_photo(owner_id, photo_id), qty_likes))
 
         return photos_list
 
@@ -259,19 +286,17 @@ class API:
             "v": VK_API_VERSION
         }
 
-        response = requests.get(url, params)
+        response_json_data = process_get_request(url, params=params)
+        if not response_json_data:
+            return False
 
-        # TODO: add handle errors
-        if "error" in response.json():
-            return []
-
-        photos_json_data = response.json()["response"]["items"]
+        photos_json_data = response_json_data["response"]["items"]
 
         photos_list = []
         for item in photos_json_data:
             qty_likes = item["likes"]["count"]
             photo_id = item["id"]
-            photos_list.append(Photo(self.get_attachment_photo(user_id, photo_id), qty_likes))
+            photos_list.append(Photo(get_attachment_photo(user_id, photo_id), qty_likes))
 
         return photos_list
 
@@ -292,11 +317,11 @@ class API:
             "v": VK_API_VERSION
         }
 
-        response = requests.get(url, params)
+        response_json_data = process_get_request(url, params)
+        if not response_json_data:
+            return False
 
-        # TODO: add handle errors
-
-        searched_users_json_data = response.json()["response"]['items']
+        searched_users_json_data = response_json_data["response"]["items"]
 
         users = []
         for searched_user_json_data in searched_users_json_data:

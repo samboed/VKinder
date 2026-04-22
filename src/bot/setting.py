@@ -9,12 +9,22 @@ class BotSetting(BotMessage, BotBase):
     def __init__(self, group_token, user_token, group_id, engine):
         super().__init__(group_token, user_token, group_id, engine)
 
-    def _setup_and_show_init_settings(self, user_id: int):
-        user_data = self._api.get_info_about_user(user_id)
+    def _setup_and_show_init_settings(self, user_id: int) -> bool:
+        get_user_data = self._api.get_info_about_user(user_id)
+        if not get_user_data:
+            self._api.send_message(user_id, "Не удалось получить стандартные настройки для поиска. "
+                                            "Попробуйте перезапустить бота! 🤖")
+            return False
 
-        cities = self._api.get_cities(city_name=user_data.city.name, region_id=user_data.city.id)
+        user_data = get_user_data
 
-        target_city = cities[0]
+        res_get_cities = self._api.get_cities(city_name=user_data.city.name, region_id=user_data.city.id)
+        if not res_get_cities:
+            self._api.send_message(user_id, "Не удалось получить данные о городе. "
+                                            "Попробуйте перезапустить бота! 🤖")
+            return False
+
+        target_city = res_get_cities[0]
 
         setup_region_id = target_city.id
         setup_region_name = target_city.region
@@ -50,6 +60,8 @@ class BotSetting(BotMessage, BotBase):
 
         self._api.send_message(user_id, info_text)
 
+        return True
+
     def _setup_sex(self, user_id: int, sex_index: int):
         self._db.update_user_setting(user_id, sex_index=sex_index)
 
@@ -57,13 +69,17 @@ class BotSetting(BotMessage, BotBase):
         self._api.send_message(user_id, f"Был установлен пол для поиска - {sex_name}")
 
     def _setup_region(self, user_id: int, message: str):
-        regions = self._api.get_regions(message)
-        if not regions:
+        res_get_regions = self._api.get_regions(message)
+        if res_get_regions is False:
+            self._api.send_message(user_id, "Не получилось найти региона в базе. "
+                                            "Попробуйте ещё раз❗")
+            return False
+        elif not res_get_regions:
             self._api.send_message(user_id, f"Региона с названием '{message}' не было найдено в базе. "
                                             f"Попробуйте ещё раз, переформулировав название❗")
             return False
 
-        target_region = regions[0]
+        target_region = res_get_regions[0]
 
         self._db.get_or_create_region(target_region.id, target_region.name)
         self._db.update_temp_setting(user_id, region_id=target_region.id)
@@ -83,13 +99,17 @@ class BotSetting(BotMessage, BotBase):
             region_id = temp_settings.region_id
             region_name = self._db.get_or_create_region(region_id).name
 
-        cities = self._api.get_cities(message, region_id)
-        if not cities:
+        res_get_cities = self._api.get_cities(message, region_id)
+        if res_get_cities is False:
+            self._api.send_message(user_id, "Не получилось найти города в базе. "
+                                            "Попробуйте ещё раз❗")
+            return False
+        elif not res_get_cities:
             self._api.send_message(user_id, f"Города с названием '{message}' не было найдено в базе. "
                                             f"Попробуйте ещё раз, переформулировав название❗")
             return False
 
-        target_city = cities[0]
+        target_city = res_get_cities[0]
 
         self._db.get_or_create_city(target_city.id, target_city.name, region_id)
         self._db.update_user_setting(user_id, city_id=target_city.id)

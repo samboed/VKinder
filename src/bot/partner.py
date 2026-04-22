@@ -161,7 +161,12 @@ class BotPartner(BotMessage, BotBase):
         return user, candidate_photos_data
 
     def _start_search(self, user_id: int):
-        candidate_data, candidate_location, candidate_photos = self.__search_new_panther(user_id)
+        res_search_new_panther = self.__search_new_panther(user_id)
+        if not res_search_new_panther:
+            self._api.send_message(user_id, "Не удалось найти пару, попробуйте ещё раз! ❤️‍🩹")
+            return False
+
+        candidate_data, candidate_location, candidate_photos = res_search_new_panther
 
         candidate_info = get_user_info_str(candidate_data.id,
                                            candidate_data.first_name,
@@ -182,6 +187,8 @@ class BotPartner(BotMessage, BotBase):
                                search_keyboard,
                                candidate_photos)
 
+        return True
+
     def __search_new_panther(self, user_id: int):
         settings = self._db.get_user_settings(user_id)
 
@@ -198,7 +205,11 @@ class BotPartner(BotMessage, BotBase):
         user_data = None
         offset_search = 0
         while not user_data:
-            users = self._api.search_user(city_id, sex_ind, age_from, age_to, offset_search)
+            res_get_users = self._api.search_user(city_id, sex_ind, age_from, age_to, offset_search)
+            if not res_get_users:
+                return False
+
+            users = res_get_users
 
             filtered_users = [user for user in users if user.id not in excluded_ids]
 
@@ -207,13 +218,20 @@ class BotPartner(BotMessage, BotBase):
 
             offset_search = len(users)
 
-        user_profile_photos = self._api.get_photos(user_data.id, "profile")
-        user_profile_photos.sort(key=lambda photo: photo.like_count, reverse=True)
-        user_profile_photos = user_profile_photos[:QTY_SEND_PROFILE_PHOTOS]
+        user_profile_photos = []
+        user_mark_photos = []
 
-        user_mark_photos = self._api.get_user_mark_photos(user_data.id)
-        user_mark_photos.sort(key=lambda photo: photo.like_count, reverse=True)
-        user_mark_photos = user_mark_photos[:QTY_SEND_MARK_PHOTOS]
+        res_get_user_profile_photos = self._api.get_photos(user_data.id, "profile")
+        if res_get_user_profile_photos:
+            user_profile_photos = res_get_user_profile_photos
+            user_profile_photos.sort(key=lambda photo: photo.like_count, reverse=True)
+            user_profile_photos = user_profile_photos[:QTY_SEND_PROFILE_PHOTOS]
+
+        res_get_user_mark_photos = self._api.get_user_mark_photos(user_data.id)
+        if res_get_user_mark_photos:
+            user_mark_photos = res_get_user_mark_photos
+            user_mark_photos.sort(key=lambda photo: photo.like_count, reverse=True)
+            user_mark_photos = user_mark_photos[:QTY_SEND_MARK_PHOTOS]
 
         photos_list = user_profile_photos + user_mark_photos
 

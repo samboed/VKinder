@@ -23,7 +23,7 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
         self.__handler_events()
 
     def __handler_events(self):
-        for event, user_id, payload in self._api.polling_events():
+        for event, user_id, payload, event_answer in self._api.polling_events():
 
             settings = self._db.get_user_settings(user_id)
             dialog_user_state = settings.state if settings else DialogStates.INITIAL
@@ -142,3 +142,6 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
                 elif payload[payload_command_keyword] == command_go_to_main_menu:
                     self._db.update_user_setting(user_id, state=DialogStates.INITIAL.value)
                     self._show_main_menu(user_id)
+
+                if event_answer:
+                    self._api.send_message_event_answer(event_answer)

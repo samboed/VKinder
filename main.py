@@ -22,6 +22,5 @@ if __name__ == "__main__":
     engine = sq.create_engine(DSN)
     create_tables(engine)
 
-
     bot = Bot(TOKEN_GROUP, TOKEN_USER, GROUP_ID, engine)
     bot.start()
