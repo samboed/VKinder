@@ -127,4 +127,3 @@ button_delete_user_from_blacklist = Button(ButtonTypes.callback,
 blacklist_keyboard = Keyboard([[button_show_user_from_blacklist],
                                [button_delete_user_from_blacklist],
                                [button_main_menu]])
-

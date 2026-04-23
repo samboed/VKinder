@@ -25,28 +25,28 @@ class BotSetting(BotMessage, BotBase):
             setup_city_id = user_data.city.id
             setup_city_name = user_data.city.name
 
-
+        setup_region_id = None
+        setup_region_name = ''
 
         res_get_cities = self._api.get_cities(city_name=setup_city_name)
         if res_get_cities is False:
             self._api.send_message(user_id, "Не удалось получить данные о городе. "
                                             "Попробуйте перезапустить бота! 🤖")
             return False
-        elif not res_get_cities:
-            setup_region_id = None
-            setup_region_name = ''
-        else:
+        elif res_get_cities:
             target_city = res_get_cities[0]
             region_name = target_city.region
 
             if region_name:
-                region = self._api.get_regions(region_name)[0]
+                res_get_region = self._api.get_regions(region_name)[0]
+                if res_get_region is False:
+                    return False
+                elif res_get_region:
+                    region = res_get_region
 
-                setup_region_id = region.id
-                setup_region_name = region.name
-            else:
-                setup_region_id = None
-                setup_region_name = ''
+                    setup_region_id = region.id
+                    setup_region_name = region.name
+
 
         setup_sex = user_data.sex_index % 2 + 1
 
@@ -137,7 +137,7 @@ class BotSetting(BotMessage, BotBase):
         if not self._db.get_city(target_city.id):
             self._db.add_city(target_city.id, target_city.name)
 
-        self._db.update_user_setting(user_id, city_id=target_city.id)
+        self._db.update_user_setting(user_id, city_id=target_city.id, region_id=region.region_id)
 
         location = get_location_str(target_city.name, region_name)
 
@@ -173,7 +173,7 @@ class BotSetting(BotMessage, BotBase):
         temp_settings = self._db.get_temp_setting(user_id)
 
         age_from = AGE_MIN_SEARCHING
-        if temp_settings and temp_settings.age_from:
+        if temp_settings:
             age_from = temp_settings.age_from
 
         if age_from > age:

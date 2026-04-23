@@ -50,3 +50,7 @@ class ButtonColorTypes(StrEnum):
     secondary = "secondary"
     negative = "negative"
     positive = "positive"
+
+
+def get_attachment_photo(user_id: int, media_id: int):
+    return Attachment("photo", user_id, media_id)

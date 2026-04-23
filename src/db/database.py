@@ -6,18 +6,6 @@ class Base(DeclarativeBase):
     pass
 
 
-class Region(Base):
-    __tablename__ = 'regions'
-    region_id: Mapped[int] = mapped_column(sq.Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(sq.String(100))
-
-
-class City(Base):
-    __tablename__ = 'cities'
-    city_id: Mapped[int] = mapped_column(sq.Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(sq.String(100))
-
-
 class User(Base):
     __tablename__ = 'users'
     user_vk_id: Mapped[int] = mapped_column(sq.BigInteger, primary_key=True)
@@ -25,6 +13,14 @@ class User(Base):
     setting: Mapped["UserSetting"] = relationship(back_populates="user")
     temp_setting: Mapped["TempSetting"] = relationship(back_populates="user")
     dialog_state: Mapped["DialogState"] = relationship(back_populates="user")
+
+
+class DialogState(Base):
+    __tablename__ = 'dialog_state'
+    user_vk_id: Mapped[int] = mapped_column(sq.ForeignKey('users.user_vk_id'), primary_key=True)
+    state: Mapped[int] = mapped_column(sq.SmallInteger, default=0)
+
+    user: Mapped["User"] = relationship(back_populates="dialog_state")
 
 
 class TempSetting(Base):
@@ -35,14 +31,6 @@ class TempSetting(Base):
 
     user: Mapped["User"] = relationship(back_populates="temp_setting")
     region: Mapped["Region"] = relationship()
-
-
-class DialogState(Base):
-    __tablename__ = 'dialog_state'
-    user_vk_id: Mapped[int] = mapped_column(sq.ForeignKey('users.user_vk_id'), primary_key=True)
-    state: Mapped[int] = mapped_column(sq.SmallInteger, default=0)
-
-    user: Mapped["User"] = relationship(back_populates="dialog_state")
 
 
 class UserSetting(Base):
@@ -71,10 +59,25 @@ class PartnerInfo(Base):
     city: Mapped["City"] = relationship()
     region: Mapped["Region"] = relationship()
 
+class Region(Base):
+    __tablename__ = 'regions'
+    region_id: Mapped[int] = mapped_column(sq.Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(sq.String(100))
+
+
+class City(Base):
+    __tablename__ = 'cities'
+    city_id: Mapped[int] = mapped_column(sq.Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(sq.String(100))
+
 
 class Favorite(Base):
     __tablename__ = 'favorites'
-    id: Mapped[int] = mapped_column(sq.BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(sq.BigInteger,
+                                    sq.Sequence("id_counter"),
+                                    server_default=sq.FetchedValue(),
+                                    autoincrement=True,
+                                    nullable=False)
     user_vk_id: Mapped[int] = mapped_column(sq.ForeignKey('users.user_vk_id'), primary_key=True)
     partner_vk_id: Mapped[int] = mapped_column(sq.ForeignKey('partner_info.partner_vk_id'), primary_key=True)
 
@@ -84,7 +87,11 @@ class Favorite(Base):
 
 class Blacklist(Base):
     __tablename__ = 'blacklist'
-    id: Mapped[int] = mapped_column(sq.BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(sq.BigInteger,
+                                    sq.Sequence("id_counter"),
+                                    server_default=sq.FetchedValue(),
+                                    autoincrement=True,
+                                    nullable=False)
     user_vk_id: Mapped[int] = mapped_column(sq.ForeignKey('users.user_vk_id'), primary_key=True)
     partner_vk_id: Mapped[int] = mapped_column(sq.ForeignKey('partner_info.partner_vk_id'), primary_key=True)
 

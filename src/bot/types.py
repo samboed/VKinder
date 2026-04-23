@@ -17,6 +17,3 @@ class DialogStates(IntEnum):
     SHOW_BLACKLIST_PERSON_PHOTO = 6
     DEL_FAVORITE = 7
     DEL_BLACKLIST_PERSON = 8
-
-
-

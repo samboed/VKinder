@@ -80,10 +80,10 @@ class BotPartner(BotMessage, BotBase):
                                    f"{first_name} {last_name} {postfix_comment}")
             self._api.send_message(user_id, delete_fail_message)
             return False
-        else:
-            delete_done_message = (f"Был удалён пользователь "
-                                   f"{first_name} {last_name} {postfix_comment}")
-            self._api.send_message(user_id, delete_done_message)
+
+        delete_done_message = (f"Был удалён пользователь "
+                               f"{first_name} {last_name} {postfix_comment}")
+        self._api.send_message(user_id, delete_done_message)
 
         return True
 
@@ -116,14 +116,14 @@ class BotPartner(BotMessage, BotBase):
         comment = "порядковый номер профиля из избранных"
         return self.__del_partner_from_table(user_id, message,
                                              self._db.get_favorites,
-                                             self._db.delete_favorite,
+                                             self._db.delete_favorite_partner,
                                              comment, "из избранных ❤️‍🔥")
 
     def _del_blacklist_person(self, user_id: int, message: str):
         comment = "порядковый номер профиля из блэклиста"
         return self.__del_partner_from_table(user_id, message,
                                              self._db.get_blacklist,
-                                             self._db.delete_blacklist,
+                                             self._db.delete_blacklist_partner,
                                              comment, "из блэклиста 💔")
 
     def _save_candidate(self, user_id: int, payload: dict, add_candidate_to_db_func):

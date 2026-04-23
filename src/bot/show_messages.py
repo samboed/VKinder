@@ -7,7 +7,7 @@ from src.bot.message_texts import (MAIN_MENU_TEXT, SPECIFY_REGION_TEXT,
                                    SPECIFY_CITY_TEXT, SELECT_SEX_TEXT,
                                    SPECIFY_AGE_FROM_TEXT, SPECIFY_AGE_TO_TEXT)
 from src.bot.partner import BotPartner
-from src.vk_api.api import get_attachment_photo
+from src.vk_api.types import get_attachment_photo
 
 
 class BotShow(BotPartner, BotMessage, BotBase):

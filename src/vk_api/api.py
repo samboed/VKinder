@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 
 from src.vk_api.keyboard import Keyboard
 from src.vk_api.service import process_get_request
-from src.vk_api.types import User, Attachment, Photo, Region, City, EventAnswer, Events
+from src.vk_api.types import User, Attachment, Photo, Region, City, EventAnswer, Events, get_attachment_photo
 from src.vk_api.logger import init_logger
 
 
@@ -15,10 +15,6 @@ URL_BASE = "https://api.vk.ru/method/"
 VK_API_VERSION = "5.199"
 
 MAX_BAD_POLLING_REQUEST = 5
-
-
-def get_attachment_photo(user_id: int, media_id: int):
-    return Attachment("photo", user_id, media_id)
 
 
 class API:
