@@ -34,7 +34,7 @@ class BotShow(BotPartner, BotMessage, BotBase):
         city_name = partner.city.name if partner.city else ""
         region_name = partner.region.name if partner.region else ""
 
-        user_info = get_user_info_str(partner.vk_id,
+        user_info = get_user_info_str(partner.partner_vk_id,
                                       partner.first_name,
                                       partner.last_name,
                                       partner.bdate,
@@ -90,8 +90,8 @@ class BotShow(BotPartner, BotMessage, BotBase):
         region_name = ''
         if settings.city:
             city_name = settings.city.name
-            if settings.city.region:
-                region_name = settings.city.region.name
+            if settings.region:
+                region_name = settings.region.name
 
         sex_name = get_sex_str(sex_index)
         age_info = get_age_range_str(age_from, age_to)

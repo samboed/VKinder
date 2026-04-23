@@ -18,18 +18,36 @@ class BotSetting(BotMessage, BotBase):
 
         user_data = get_user_data
 
-        res_get_cities = self._api.get_cities(city_name=user_data.city.name, region_id=user_data.city.id)
-        if not res_get_cities:
+        if not user_data.city.id:
+            setup_city_id = 1
+            setup_city_name = "Москва"
+        else:
+            setup_city_id = user_data.city.id
+            setup_city_name = user_data.city.name
+
+
+
+        res_get_cities = self._api.get_cities(city_name=setup_city_name)
+        if res_get_cities is False:
             self._api.send_message(user_id, "Не удалось получить данные о городе. "
                                             "Попробуйте перезапустить бота! 🤖")
             return False
+        elif not res_get_cities:
+            setup_region_id = None
+            setup_region_name = ''
+        else:
+            target_city = res_get_cities[0]
+            region_name = target_city.region
 
-        target_city = res_get_cities[0]
+            if region_name:
+                region = self._api.get_regions(region_name)[0]
 
-        setup_region_id = target_city.id
-        setup_region_name = target_city.region
-        setup_city_id = user_data.city.id
-        setup_city_name = user_data.city.name
+                setup_region_id = region.id
+                setup_region_name = region.name
+            else:
+                setup_region_id = None
+                setup_region_name = ''
+
         setup_sex = user_data.sex_index % 2 + 1
 
         user_age = get_full_age(user_data.bdate)
@@ -40,11 +58,10 @@ class BotSetting(BotMessage, BotBase):
             setup_age_from = AGE_MIN_SEARCHING
             setup_age_to = AGE_DEF_MAX_SEARCHING
 
-        if not self._db.get_region(setup_region_id):
+        if setup_region_id:
             self._db.add_region(setup_region_id, setup_region_name)
 
-        if not self._db.get_city(setup_city_id):
-            self._db.add_city(setup_city_id, setup_city_name, setup_region_id)
+        self._db.add_city(setup_city_id, setup_city_name)
 
         self._db.update_user_setting(user_id,
                                      city_id=setup_city_id,
@@ -89,7 +106,7 @@ class BotSetting(BotMessage, BotBase):
 
         self._db.update_temp_setting(user_id, region_id=target_region.id)
 
-        self._api.send_message(user_id, f"Был сохранён регион {target_region.name},"
+        self._api.send_message(user_id, f"Был сохранён регион {target_region.name}, "
                                         f"чтобы его использовать в поиске, необходимо "
                                         f"указать город 💾")
 
@@ -98,15 +115,14 @@ class BotSetting(BotMessage, BotBase):
     def _setup_city(self, user_id: int, message: str):
         temp_settings = self._db.get_temp_setting(user_id)
 
-        region_id = None
-        region_name = ''
-        if temp_settings and temp_settings.region_id:
-            region_id = temp_settings.region_id
-            region = self._db.get_region(region_id)
-            if region:
-                region_name = region.name
+        region = self._db.get_region(temp_settings.region_id)
+        if not region:
+            res_get_cities = self._api.get_cities(message)
+            region_name = ''
+        else:
+            res_get_cities = self._api.get_cities(message, region.region_id)
+            region_name = region.name
 
-        res_get_cities = self._api.get_cities(message, region_id)
         if res_get_cities is False:
             self._api.send_message(user_id, "Не получилось найти города в базе. "
                                             "Попробуйте ещё раз❗")
@@ -119,7 +135,7 @@ class BotSetting(BotMessage, BotBase):
         target_city = res_get_cities[0]
 
         if not self._db.get_city(target_city.id):
-            self._db.add_city(target_city.id, target_city.name, region_id)
+            self._db.add_city(target_city.id, target_city.name)
 
         self._db.update_user_setting(user_id, city_id=target_city.id)
 

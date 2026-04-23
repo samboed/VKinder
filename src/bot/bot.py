@@ -25,8 +25,7 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
     def __handler_events(self):
         for event, user_id, payload, event_answer in self._api.polling_events():
 
-            settings = self._db.get_user_settings(user_id)
-            dialog_user_state = settings.state if settings else DialogStates.INITIAL
+            dialog_user_state = self._db.get_dialog_state(user_id)
 
             if event == Events.SEND_MESSAGE:
                 message = payload
@@ -34,47 +33,47 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
                 if dialog_user_state == DialogStates.SETUP_REGION:
                     res_setup_region = self._setup_region(user_id, message)
                     if res_setup_region:
-                        self._db.update_user_setting(user_id, state=DialogStates.SETUP_CITY.value)
+                        self._db.update_dialog_state(user_id, DialogStates.SETUP_CITY.value)
                         self._show_city_setup(user_id)
 
                 elif dialog_user_state == DialogStates.SETUP_CITY:
                     res_setup_city = self._setup_city(user_id, message)
                     if res_setup_city:
-                        self._db.update_user_setting(user_id, state=DialogStates.INITIAL.value)
+                        self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
                         self._show_settings(user_id)
 
                 elif dialog_user_state == DialogStates.SETUP_AGE_FROM:
                     res_setup_age_from = self._setup_age_from(user_id, message)
                     if res_setup_age_from:
-                        self._db.update_user_setting(user_id, state=DialogStates.SETUP_AGE_TO.value)
+                        self._db.update_dialog_state(user_id, DialogStates.SETUP_AGE_TO.value)
                         self._show_age_to_setting(user_id)
 
                 elif dialog_user_state == DialogStates.SETUP_AGE_TO:
                     res_setup_age_to = self._setup_age_to(user_id, message)
                     if res_setup_age_to:
-                        self._db.update_user_setting(user_id, state=DialogStates.INITIAL.value)
+                        self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
                         self._show_settings(user_id)
 
                 elif dialog_user_state == DialogStates.SHOW_FAVORITE_PHOTO:
                     res_show_favorite_photos = self._show_favorite_photos(user_id, message)
                     if res_show_favorite_photos:
-                        self._db.update_user_setting(user_id, state=DialogStates.INITIAL.value)
+                        self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
 
                 elif dialog_user_state == DialogStates.SHOW_BLACKLIST_PERSON_PHOTO:
                     res_show_blacklist_photos = self._show_blacklist_person_photos(user_id, message)
                     if res_show_blacklist_photos:
-                        self._db.update_user_setting(user_id, state=DialogStates.INITIAL.value)
+                        self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
 
                 elif dialog_user_state == DialogStates.DEL_FAVORITE:
                     res_del_favorite = self._del_favorite(user_id, message)
                     if res_del_favorite:
-                        self._db.update_user_setting(user_id, state=DialogStates.INITIAL.value)
+                        self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
                         self._show_favorites(user_id)
 
                 elif dialog_user_state == DialogStates.DEL_BLACKLIST_PERSON:
                     res_del_blacklist_person = self._del_blacklist_person(user_id, message)
                     if res_del_blacklist_person:
-                        self._db.update_user_setting(user_id, state=DialogStates.INITIAL.value)
+                        self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
                         self._show_blacklist(user_id)
 
             elif event == Events.PUSH_BUTTON:
@@ -84,7 +83,7 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
                     if is_new_user:
                         self._setup_and_show_init_settings(user_id)
 
-                    self._db.update_user_setting(user_id, state=DialogStates.INITIAL.value)
+                    self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
                     self._show_main_menu(user_id)
 
                 elif payload[payload_command_keyword] == command_search_panther:
@@ -100,19 +99,19 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
                     self._show_blacklist(user_id)
 
                 elif payload[payload_command_keyword] == command_show_profile_photos_favorites:
-                    self._db.update_user_setting(user_id, state=DialogStates.SHOW_FAVORITE_PHOTO.value)
+                    self._db.update_dialog_state(user_id, DialogStates.SHOW_FAVORITE_PHOTO.value)
                     self._ask_profile_number_for_show_photos_from_favorites(user_id)
 
                 elif payload[payload_command_keyword] == command_show_user_from_blacklist:
-                    self._db.update_user_setting(user_id, state=DialogStates.SHOW_BLACKLIST_PERSON_PHOTO.value)
+                    self._db.update_dialog_state(user_id, DialogStates.SHOW_BLACKLIST_PERSON_PHOTO.value)
                     self._ask_profile_number_for_show_photos_from_blacklist(user_id)
 
                 elif payload[payload_command_keyword] == command_del_user_from_favorites:
-                    self._db.update_user_setting(user_id, state=DialogStates.DEL_FAVORITE.value)
+                    self._db.update_dialog_state(user_id, DialogStates.DEL_FAVORITE.value)
                     self._ask_profile_number_for_del_from_favorites(user_id)
 
                 elif payload[payload_command_keyword] == command_del_user_from_blacklist:
-                    self._db.update_user_setting(user_id, state=DialogStates.DEL_BLACKLIST_PERSON.value)
+                    self._db.update_dialog_state(user_id, DialogStates.DEL_BLACKLIST_PERSON.value)
                     self._ask_profile_number_for_del_from_blacklist(user_id)
 
                 elif payload[payload_command_keyword] == command_add_user_to_favorites:
@@ -129,18 +128,18 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
                     self._show_settings(user_id)
 
                 elif payload[payload_command_keyword] == command_setup_city:
-                    self._db.update_user_setting(user_id, state=DialogStates.SETUP_REGION.value)
+                    self._db.update_dialog_state(user_id, DialogStates.SETUP_REGION.value)
                     self._show_region_setup(user_id)
 
                 elif payload[payload_command_keyword] == command_setup_sex:
                     self._show_sex_setup(user_id)
 
                 elif payload[payload_command_keyword] == command_setup_age:
-                    self._db.update_user_setting(user_id, state=DialogStates.SETUP_AGE_FROM.value)
+                    self._db.update_dialog_state(user_id, DialogStates.SETUP_AGE_FROM.value)
                     self._show_age_from_setting(user_id)
 
                 elif payload[payload_command_keyword] == command_go_to_main_menu:
-                    self._db.update_user_setting(user_id, state=DialogStates.INITIAL.value)
+                    self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
                     self._show_main_menu(user_id)
 
                 if event_answer:

@@ -29,6 +29,7 @@ def get_location_str(city_name: str, region_name: str = ''):
 def get_profile_link(user_id: int):
     return f"https://vk.com/id{user_id}"
 
+
 def get_user_info_str(user_id: int, first_name: str, last_name: str, bdate: str,
                       city_name: str = '', region_name: str = '', newline_link=True):
     profile_link = get_profile_link(user_id)

@@ -26,7 +26,7 @@ class BotPartner(BotMessage, BotBase):
             region_name = partner.region.name if partner.region else ""
 
             partner_info = (f"{f'{person_num}.':5} " +
-                           get_user_info_str(partner.vk_id, partner.first_name,
+                           get_user_info_str(partner.partner_vk_id, partner.first_name,
                                              partner.last_name, partner.bdate, city_name,
                                              region_name, False) + "\n")
 
@@ -48,7 +48,7 @@ class BotPartner(BotMessage, BotBase):
             region_name = partner.region.name if partner.region else ""
 
             partner_info = (f"{f'{person_num}.':5} " +
-                           get_user_info_str(partner.vk_id, partner.first_name,
+                           get_user_info_str(partner.partner_vk_id, partner.first_name,
                                              partner.last_name, partner.bdate, city_name,
                                              region_name, False) + "\n")
 
@@ -107,7 +107,7 @@ class BotPartner(BotMessage, BotBase):
         first_name = partner.first_name
         last_name = partner.last_name
 
-        result_delete_person = del_person_from_db_func(user_id, partner.vk_id)
+        result_delete_person = del_person_from_db_func(user_id, partner.partner_vk_id)
 
         return self.__process_del_person(user_id, result_delete_person,
                                          first_name, last_name, postfix_comment)
@@ -131,7 +131,8 @@ class BotPartner(BotMessage, BotBase):
 
         settings = self._db.get_user_settings(user_id)
         self._db.add_partner(partner.id, partner.first_name, partner.last_name,
-                             partner.bdate, settings.city_id, settings.city.region.id)
+                             partner.bdate, settings.city_id,
+                             settings.region_id)
 
         for owner_id, media_id in partner_photos:
             self._db.add_photo(partner.id, owner_id, media_id)
@@ -192,8 +193,10 @@ class BotPartner(BotMessage, BotBase):
     def __search_new_panther(self, user_id: int):
         settings = self._db.get_user_settings(user_id)
 
-        region_id = settings.city.region.id
-        region_name = settings.city.region.name
+        region_id = settings.region_id
+        region_name = ''
+        if region_id:
+            region_name = settings.region.name
         city_id = settings.city_id
         city_name = settings.city.name
         sex_ind = settings.sex_index

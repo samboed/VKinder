@@ -234,8 +234,13 @@ class API:
 
         first_name = user_json_data["first_name"]
         last_name = user_json_data["last_name"]
-        city_id = user_json_data["city"]["id"]
-        city_name = user_json_data["city"]["title"]
+        city = user_json_data.get("city")
+        if city:
+            city_id = user_json_data["city"]["id"]
+            city_name = user_json_data["city"]["title"]
+        else:
+            city_id = None
+            city_name = ''
         if "bdate" in user_json_data:
             birthday_date = user_json_data["bdate"]
         else:
