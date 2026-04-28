@@ -2,6 +2,7 @@ import random
 import sys
 import json
 
+from typing import Generator
 from urllib.parse import urljoin
 
 from src.vk_api.keyboard import Keyboard
@@ -25,20 +26,20 @@ class API:
 
         init_logger()
 
-    def __setup_long_poll_server_session(self):
+    def __setup_long_poll_server_session(self) -> bool:
         url = urljoin(URL_BASE, "groups.setLongPollSettings")
 
         params = {
             "group_id": self.__group_id,
-            "v": VK_API_VERSION,
             "enabled": 1,
             "message_new": 1,
-            "message_event": 1
+            "message_event": 1,
+            "v": VK_API_VERSION
         }
 
         return process_get_request(url, params, self.__def_headers)
 
-    def __set_long_poll_server_session(self):
+    def __set_long_poll_server_session(self) -> tuple[str, str, str] | bool:
         if not self.__setup_long_poll_server_session():
             return False
 
@@ -61,7 +62,7 @@ class API:
 
         return server, key, ts
 
-    def polling_events(self):
+    def polling_events(self) -> Generator[tuple[Events, int, str | dict, EventAnswer | None]]:
         res_set_long_poll_server_session = self.__set_long_poll_server_session()
         if not res_set_long_poll_server_session:
             sys.exit(1)
@@ -111,14 +112,17 @@ class API:
                     yield Events.SEND_MESSAGE, user_id, message_text, None
 
     def send_message(self, user_id: int, message: str,
-                     keyboard: Keyboard = None, attachments: list[Attachment] = None):
+                     keyboard: Keyboard = None,
+                     attachments: list[Attachment] = None) -> bool:
         url = urljoin(URL_BASE, "messages.send")
+
         params = {
             "user_id": user_id,
             "message": message,
             "random_id": random.randint(1, 0xFFFF_FFFF),
             "v": VK_API_VERSION
         }
+
         if keyboard:
             params["keyboard"] = keyboard.json()
         if attachments:
@@ -141,7 +145,7 @@ class API:
 
         return process_get_request(url, params, self.__def_headers)
 
-    def send_message_event_answer(self, event_answer: EventAnswer):
+    def send_message_event_answer(self, event_answer: EventAnswer) -> bool:
         url = urljoin(URL_BASE, "messages.sendMessageEventAnswer")
 
         params = {
@@ -153,7 +157,7 @@ class API:
 
         return process_get_request(url, params, self.__def_headers)
 
-    def get_regions(self, region_name: str):
+    def get_regions(self, region_name: str) -> list[Region] | bool:
         url = urljoin(URL_BASE, "database.getRegions")
 
         params = {
@@ -174,7 +178,8 @@ class API:
 
         return regions
 
-    def get_cities(self, city_name: str = None, region_id: int = None):
+    def get_cities(self, city_name: str = None,
+                   region_id: int = None) -> list[City] | bool:
         url = urljoin(URL_BASE, "database.getCities")
 
         params = {
@@ -213,7 +218,7 @@ class API:
 
         return cities
 
-    def get_info_about_user(self, user_id: int):
+    def get_info_about_user(self, user_id: int) -> User | bool:
         url = urljoin(URL_BASE, "users.get")
 
         params = {
@@ -246,11 +251,11 @@ class API:
 
         user_data = User(user_id, first_name, last_name,
                          City(city_id, city_name, '', ''),
-                         birthday_date, sex_index, is_closed)
+                         birthday_date, sex_index, '', is_closed)
 
         return user_data
 
-    def get_photos(self, owner_id: int, album_name: str):
+    def get_photos(self, owner_id: int, album_name: str) -> list[Photo] | bool:
         url = urljoin(URL_BASE, "photos.get")
 
         params = {
@@ -270,13 +275,14 @@ class API:
 
         photos_list = []
         for item in photos_json_data:
-            qty_likes = item["likes"]["count"]
             photo_id = item["id"]
+            qty_likes = item["likes"]["count"]
+
             photos_list.append(Photo(get_attachment_photo(owner_id, photo_id), qty_likes))
 
         return photos_list
 
-    def get_user_mark_photos(self, user_id: int):
+    def get_user_mark_photos(self, user_id: int) -> list[Photo] | bool:
         url = urljoin(URL_BASE, "photos.getUserPhotos")
 
         params = {
@@ -295,13 +301,17 @@ class API:
 
         photos_list = []
         for item in photos_json_data:
-            qty_likes = item["likes"]["count"]
+            owner_id = item["owner_id"]
             photo_id = item["id"]
-            photos_list.append(Photo(get_attachment_photo(user_id, photo_id), qty_likes))
+            qty_likes = item["likes"]["count"]
+
+            photos_list.append(Photo(get_attachment_photo(owner_id, photo_id), qty_likes))
 
         return photos_list
 
-    def search_user(self, city_id: int, sex_index: int, age_from: int, age_to: int, offset_search = 0):
+    def search_users(self, city_id: int, sex_index: int,
+                     age_from: int, age_to: int, offset_search: int = 0,
+                     can_be_private_profile: bool = False) -> list[User] | bool:
         url = urljoin(URL_BASE, "users.search")
 
         params = {
@@ -311,10 +321,11 @@ class API:
             "age_from": age_from,
             "age_to": age_to,
             "offset": offset_search,
+            "sort": 1,
+            "online": 0,
+            "has_photo": 1,
             "count": 1000,
-            "fields": "bdate",
-            "is_closed": False,
-            "status": 6,
+            "fields": "bdate,relation,sex",
             "v": VK_API_VERSION
         }
 
@@ -326,10 +337,18 @@ class API:
 
         users = []
         for searched_user_json_data in searched_users_json_data:
+            is_closed = searched_user_json_data["is_closed"]
+
+            if not can_be_private_profile and is_closed:
+                continue
+
             user_id = searched_user_json_data["id"]
             first_name = searched_user_json_data["first_name"]
             last_name = searched_user_json_data["last_name"]
             bdate = searched_user_json_data["bdate"]
-            users.append(User(user_id, first_name, last_name, '', bdate, '', ''))
+            relation_index = searched_user_json_data.get("relation", 0)
+            sex_index = searched_user_json_data["sex"]
+
+            users.append(User(user_id, first_name, last_name, '', bdate, sex_index, relation_index, ''))
 
         return users

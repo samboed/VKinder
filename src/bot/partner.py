@@ -1,8 +1,8 @@
-import random
+from sqlalchemy.engine.base import Engine
 
 from src.bot.base import BotBase
 from src.bot.constants import QTY_SEND_PROFILE_PHOTOS, QTY_SEND_MARK_PHOTOS
-from src.bot.formatters import get_user_info_str
+from src.bot.formatters import get_user_info_str, get_relation_info_str
 from src.bot.keyboard import (button_user_to_blacklist, button_user_to_favorites,
                               button_main_menu, payload_candidate_data_keyword)
 from src.bot.message_processing import BotMessage
@@ -14,8 +14,9 @@ from src.vk_api.types import User, Attachment
 
 
 class BotPartner(BotMessage, BotBase):
-    def __init__(self, group_token, user_token, group_id, engine):
-        super().__init__(group_token, user_token, group_id, engine)
+    def __init__(self, group_token: str, group_id: int,
+                 user_token: str, engine: Engine):
+        super().__init__(group_token, group_id, user_token, engine)
 
     def _get_partners_info_from_favorites(self, user_id: int) -> tuple[str, bool]:
         favorites = self._db.get_favorites(user_id)
@@ -26,9 +27,8 @@ class BotPartner(BotMessage, BotBase):
             region_name = partner.region.name if partner.region else ""
 
             partner_info = (f"{f'{person_num}.':5} " +
-                           get_user_info_str(partner.partner_vk_id, partner.first_name,
-                                             partner.last_name, partner.bdate, city_name,
-                                             region_name, False) + "\n")
+                            get_user_info_str(partner.partner_vk_id, partner.first_name, partner.last_name,
+                                              partner.bdate, city_name, region_name, newline_link=False) + "\n")
 
             info_text += partner_info
 
@@ -48,9 +48,8 @@ class BotPartner(BotMessage, BotBase):
             region_name = partner.region.name if partner.region else ""
 
             partner_info = (f"{f'{person_num}.':5} " +
-                           get_user_info_str(partner.partner_vk_id, partner.first_name,
-                                             partner.last_name, partner.bdate, city_name,
-                                             region_name, False) + "\n")
+                            get_user_info_str(partner.partner_vk_id, partner.first_name, partner.last_name,
+                                              partner.bdate, city_name, region_name, newline_link=False) + "\n")
 
             info_text += partner_info
 
@@ -73,8 +72,10 @@ class BotPartner(BotMessage, BotBase):
     def _ask_profile_number_for_del_from_blacklist(self, user_id: int):
         self._api.send_message(user_id, DEL_PHOTOS_BLACKLIST_PERSON_TEXT)
 
-    def __process_del_person(self, user_id: int, result_delete_person: bool,
-                             first_name: str, last_name: str, postfix_comment: str):
+    def __process_del_person(self, user_id: int,
+                             result_delete_person: bool,
+                             first_name: str, last_name: str,
+                             postfix_comment: str) -> bool:
         if not result_delete_person:
             delete_fail_message = (f"Не удалось удалить пользователя "
                                    f"{first_name} {last_name} {postfix_comment}")
@@ -89,7 +90,7 @@ class BotPartner(BotMessage, BotBase):
 
     def __del_partner_from_table(self, user_id: int, message: str,
                                  get_partners_func, del_person_from_db_func,
-                                 comment: str, postfix_comment: str):
+                                 comment: str, postfix_comment: str) -> bool:
         partner_num = self._process_digit_from_message(user_id, message, comment)
 
         if partner_num is False:
@@ -112,21 +113,22 @@ class BotPartner(BotMessage, BotBase):
         return self.__process_del_person(user_id, result_delete_person,
                                          first_name, last_name, postfix_comment)
 
-    def _del_favorite(self, user_id: int, message: str):
+    def _del_favorite(self, user_id: int, message: str) -> bool:
         comment = "порядковый номер профиля из избранных"
         return self.__del_partner_from_table(user_id, message,
                                              self._db.get_favorites,
                                              self._db.delete_favorite_partner,
                                              comment, "из избранных ❤️‍🔥")
 
-    def _del_blacklist_person(self, user_id: int, message: str):
+    def _del_blacklist_person(self, user_id: int, message: str) -> bool:
         comment = "порядковый номер профиля из блэклиста"
         return self.__del_partner_from_table(user_id, message,
                                              self._db.get_blacklist,
                                              self._db.delete_blacklist_partner,
                                              comment, "из блэклиста 💔")
 
-    def _save_candidate(self, user_id: int, payload: dict, add_candidate_to_db_func):
+    def _save_candidate(self, user_id: int, payload: dict,
+                        add_candidate_to_db_func):
         partner, partner_photos = self.__unpack_candidate_payload(payload)
 
         settings = self._db.get_user_settings(user_id)
@@ -139,29 +141,30 @@ class BotPartner(BotMessage, BotBase):
 
         add_candidate_to_db_func(user_id, partner.id)
 
+
     @staticmethod
-    def __pack_candidate_payload(candidate_data: User, candidate_photos: list[Attachment]):
+    def __pack_candidate_payload(candidate_data: User,
+                                 candidate_photos: list[Attachment]) -> list:
         candidate_id = candidate_data.id
         candidate_first_name = candidate_data.first_name
         candidate_last_name = candidate_data.last_name
         candidate_bdate = candidate_data.bdate
 
-        candidate_photos_data = []
-        for candidate_photo in candidate_photos:
-            candidate_photos_data.append((candidate_photo.owner_id, candidate_photo.media_id))
+        candidate_photos_data = [(candidate_photo.owner_id, candidate_photo.media_id)
+                                 for candidate_photo in candidate_photos]
 
         return [candidate_id, candidate_first_name, candidate_last_name, candidate_bdate, candidate_photos_data]
 
     @staticmethod
-    def __unpack_candidate_payload(payload):
+    def __unpack_candidate_payload(payload) -> tuple[User, list[tuple[int, int]]]:
         (candidate_id, candidate_first_name, candidate_last_name,
          candidate_bdate, candidate_photos_data) = payload[payload_candidate_data_keyword]
 
-        user = User(candidate_id, candidate_first_name, candidate_last_name, '', candidate_bdate, '', '')
+        user = User(candidate_id, candidate_first_name, candidate_last_name, '', candidate_bdate, '', '', '')
 
         return user, candidate_photos_data
 
-    def _start_search(self, user_id: int):
+    def _start_search(self, user_id: int) -> bool:
         res_search_new_panther = self.__search_new_panther(user_id)
         if not res_search_new_panther:
             self._api.send_message(user_id, "Не удалось найти пару, попробуйте ещё раз! ❤️‍🩹")
@@ -169,12 +172,11 @@ class BotPartner(BotMessage, BotBase):
 
         candidate_data, candidate_location, candidate_photos = res_search_new_panther
 
-        candidate_info = get_user_info_str(candidate_data.id,
-                                           candidate_data.first_name,
-                                           candidate_data.last_name,
-                                           candidate_data.bdate,
-                                           candidate_location.city_name,
-                                           candidate_location.region_name)
+        relation_info = get_relation_info_str(candidate_data.relation_index, candidate_data.sex_index)
+
+        candidate_info = get_user_info_str(candidate_data.id, candidate_data.first_name, candidate_data.last_name,
+                                           candidate_data.bdate, candidate_location.city_name,
+                                           candidate_location.region_name, relation_info)
 
         payload_data = self.__pack_candidate_payload(candidate_data, candidate_photos)
 
@@ -190,7 +192,8 @@ class BotPartner(BotMessage, BotBase):
 
         return True
 
-    def __search_new_panther(self, user_id: int):
+    def __search_new_panther(self,
+                             user_id: int) -> tuple[User, Location, list[Attachment]] | bool:
         settings = self._db.get_user_settings(user_id)
 
         region_id = settings.region_id
@@ -208,7 +211,7 @@ class BotPartner(BotMessage, BotBase):
         user_data = None
         offset_search = 0
         while not user_data:
-            res_get_users = self._api.search_user(city_id, sex_ind, age_from, age_to, offset_search)
+            res_get_users = self._api.search_users(city_id, sex_ind, age_from, age_to, offset_search)
             if not res_get_users:
                 return False
 
@@ -217,7 +220,7 @@ class BotPartner(BotMessage, BotBase):
             filtered_users = [user for user in users if user.id not in excluded_ids]
 
             if len(filtered_users):
-                user_data = filtered_users[random.randint(0, len(filtered_users) - 1)]
+                user_data = filtered_users[0]
 
             offset_search = len(users)
 

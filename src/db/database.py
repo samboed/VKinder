@@ -1,5 +1,7 @@
 import sqlalchemy as sq
+
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.engine.base import Engine
 
 
 class Base(DeclarativeBase):
@@ -103,15 +105,19 @@ class Photo(Base):
     __tablename__ = 'photos'
     id: Mapped[int] = mapped_column(sq.Integer, primary_key=True)
     partner_vk_id: Mapped[int] = mapped_column(sq.ForeignKey('partner_info.partner_vk_id'))
-    media_id: Mapped[int] = mapped_column(sq.Integer)
-    owner_id: Mapped[int] = mapped_column(sq.Integer)
+    media_id: Mapped[int] = mapped_column(sq.BigInteger)
+    owner_id: Mapped[int] = mapped_column(sq.BigInteger)
 
     partner: Mapped["PartnerInfo"] = relationship(backref='photos')
 
 
-def create_tables(engine):
+def create_engine(dsn: str) -> Engine:
+    return sq.create_engine(dsn)
+
+
+def create_tables(engine: Engine):
     Base.metadata.create_all(engine)
 
 
-def drop_tables(engine):
+def drop_tables(engine: Engine):
     Base.metadata.drop_all(engine)

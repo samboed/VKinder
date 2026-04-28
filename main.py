@@ -1,26 +1,14 @@
-import os
-import sqlalchemy as sq
-
-from dotenv import load_dotenv
-
-from src.db.database import create_tables
+from src.settings import load_env_variables
+from src.db.database import create_tables, create_engine
 from src.bot.bot import Bot
 
 
-load_dotenv()
-
-TOKEN_GROUP = os.getenv("TOKEN_GROUP")
-TOKEN_USER = os.getenv("TOKEN_USER")
-GROUP_ID = os.getenv("VK_GROUP_ID")
-DSN = os.getenv("DSN")
-
-
 if __name__ == "__main__":
-    if not DSN:
-        raise ValueError("DSN не найден. Убедитесь, что файл .env настроен.")
+    token_group, group_id, token_user, dsn = load_env_variables()
 
-    engine = sq.create_engine(DSN)
+    engine = create_engine(dsn)
+
     create_tables(engine)
 
-    bot = Bot(TOKEN_GROUP, TOKEN_USER, GROUP_ID, engine)
+    bot = Bot(token_group, group_id, token_user, engine)
     bot.start()

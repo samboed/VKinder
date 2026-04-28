@@ -1,3 +1,5 @@
+from sqlalchemy.engine.base import Engine
+
 from src.bot.utils import get_full_age
 from src.bot.base import BotBase
 from src.bot.constants import AGE_MIN_SEARCHING, AGE_DEF_MAX_SEARCHING
@@ -6,8 +8,9 @@ from src.bot.message_processing import BotMessage
 
 
 class BotSetting(BotMessage, BotBase):
-    def __init__(self, group_token, user_token, group_id, engine):
-        super().__init__(group_token, user_token, group_id, engine)
+    def __init__(self, group_token: str, group_id: int,
+                 user_token: str, engine: Engine):
+        super().__init__(group_token, group_id, user_token, engine)
 
     def _setup_and_show_init_settings(self, user_id: int) -> bool:
         get_user_data = self._api.get_info_about_user(user_id)
@@ -82,13 +85,18 @@ class BotSetting(BotMessage, BotBase):
 
         return True
 
-    def _setup_sex(self, user_id: int, sex_index: int):
-        self._db.update_user_setting(user_id, sex_index=sex_index)
+    def _setup_sex(self, user_id: int, sex_index: int) -> bool:
+        if not self._db.update_user_setting(user_id, sex_index=sex_index):
+            self._api.send_message(user_id, "Не получилось обновить текущие настройки. "
+                                            "Попробуйте повторить операцию ещё раз❗")
+            return False
 
         sex_name = get_sex_str(sex_index)
         self._api.send_message(user_id, f"Был установлен пол для поиска - {sex_name}")
 
-    def _setup_region(self, user_id: int, message: str):
+        return True
+
+    def _setup_region(self, user_id: int, message: str) -> bool:
         res_get_regions = self._api.get_regions(message)
         if res_get_regions is False:
             self._api.send_message(user_id, "Не получилось найти региона в базе. "
@@ -112,7 +120,7 @@ class BotSetting(BotMessage, BotBase):
 
         return True
 
-    def _setup_city(self, user_id: int, message: str):
+    def _setup_city(self, user_id: int, message: str) -> bool:
         temp_settings = self._db.get_temp_setting(user_id)
 
         region = self._db.get_region(temp_settings.region_id)
@@ -145,7 +153,7 @@ class BotSetting(BotMessage, BotBase):
 
         return True
 
-    def _setup_age_from(self, user_id: int, message: str):
+    def _setup_age_from(self, user_id: int, message: str) -> bool:
         comment = "минимальный возраст"
 
         age = self._process_age_from_message(user_id, message, comment)
@@ -161,7 +169,7 @@ class BotSetting(BotMessage, BotBase):
 
         return True
 
-    def _setup_age_to(self, user_id: int, message: str):
+    def _setup_age_to(self, user_id: int, message: str) -> bool:
         comment_age_from = "минимальный возраст"
         comment_age_to = "максимальный возраст"
 

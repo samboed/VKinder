@@ -2,7 +2,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
-def get_full_age(bdate: str):
+def get_full_age(bdate: str) -> int | bool:
     try:
         current_time = datetime.now()
         user_birthday_datetime = datetime.strptime(bdate, "%d.%m.%Y")

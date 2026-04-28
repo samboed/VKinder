@@ -1,19 +1,18 @@
-import os
 import sqlalchemy as sq
 
-from dotenv import load_dotenv
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, InstrumentedAttribute
+from sqlalchemy.engine.base import Engine
 
 from src.db.database import (User, PartnerInfo, Favorite, Blacklist, DialogState,
                              UserSetting, TempSetting, Photo, Region, City)
 
 
 class DatabaseManager:
-    def __init__(self, engine):
+    def __init__(self, engine: Engine):
         session = sessionmaker(bind=engine)
         self.session = session()
 
-    def register_user(self, user_vk_id: int):
+    def register_user(self, user_vk_id: int) -> bool:
         user = self.session.query(User).filter_by(user_vk_id=user_vk_id).first()
         if not user:
             new_user = User(user_vk_id=user_vk_id)
@@ -26,37 +25,37 @@ class DatabaseManager:
             return True
         return False
 
-    def get_dialog_state(self, user_vk_id: int):
+    def get_dialog_state(self, user_vk_id: int) -> int | InstrumentedAttribute[int]:
         if not (dialog_state := self.session.query(DialogState).filter_by(user_vk_id=user_vk_id).first()):
             return -1
         return dialog_state.state
 
-    def get_user_settings(self, user_vk_id: int):
+    def get_user_settings(self, user_vk_id: int) -> type[UserSetting] | None:
         return self.session.query(UserSetting).filter_by(user_vk_id=user_vk_id).first()
 
-    def get_favorites(self, user_vk_id: int):
+    def get_favorites(self, user_vk_id: int) -> list[InstrumentedAttribute[PartnerInfo]]:
         favorites = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id).order_by(sq.desc(Favorite.id)).all()
         return [fav.partner for fav in favorites]
 
-    def get_blacklist(self, user_vk_id: int):
+    def get_blacklist(self, user_vk_id: int) -> list[InstrumentedAttribute[PartnerInfo]]:
         blacklist = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id).order_by(sq.desc(Blacklist.id)).all()
         return [blocked.partner for blocked in blacklist]
 
-    def get_excluded_partner_ids(self, user_vk_id: int):
+    def get_excluded_partner_ids(self, user_vk_id: int) -> list[InstrumentedAttribute[int]]:
         favorites = self.session.query(Favorite.partner_vk_id).filter_by(user_vk_id=user_vk_id).all()
         blacklist = self.session.query(Blacklist.partner_vk_id).filter_by(user_vk_id=user_vk_id).all()
-        return [f[0] for f in favorites] + [b[0] for b in blacklist]
+        return [f.partner_vk_id for f in favorites] + [b.partner_vk_id for b in blacklist]
 
-    def get_temp_setting(self, user_vk_id: int):
+    def get_temp_setting(self, user_vk_id: int) -> type[TempSetting] | None:
         return self.session.query(TempSetting).filter_by(user_vk_id=user_vk_id).first()
 
-    def get_city(self, city_id: int):
+    def get_city(self, city_id: int) -> type[City] | None:
         return self.session.query(City).filter_by(city_id=city_id).first()
 
-    def get_region(self, region_id: int):
+    def get_region(self, region_id: int) -> type[Region] | None:
         return self.session.query(Region).filter_by(region_id=region_id).first()
 
-    def check_partner(self, user_vk_id: int, partner_vk_id: int):
+    def check_partner(self, user_vk_id: int, partner_vk_id: int) -> bool:
         in_favorites = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id,
                                                               partner_vk_id=partner_vk_id).first()
         in_blacklist = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id,
@@ -72,12 +71,14 @@ class DatabaseManager:
         dialog_state.state = state
         self.session.commit()
 
-    def update_user_setting(self, user_vk_id: int, **kwargs):
+    def update_user_setting(self, user_vk_id: int, **kwargs) -> bool:
         setting = self.get_user_settings(user_vk_id)
         if setting:
             for key, value in kwargs.items():
                 setattr(setting, key, value)
             self.session.commit()
+            return True
+        return False
 
     def update_temp_setting(self, user_vk_id: int, **kwargs):
         if not (setting := self.get_temp_setting(user_vk_id)):
@@ -88,20 +89,24 @@ class DatabaseManager:
             setattr(setting, key, value)
         self.session.commit()
 
-    def add_region(self, region_id: int, name: str):
+    def add_region(self, region_id: int, name: str) -> bool:
         if not self.get_region(region_id):
             region = Region(region_id=region_id, name=name)
             self.session.add(region)
             self.session.commit()
+            return True
+        return False
 
-    def add_city(self, city_id: int, name: str):
+    def add_city(self, city_id: int, name: str) -> bool:
         if not self.get_city(city_id):
             city = City(city_id=city_id, name=name)
             self.session.add(city)
             self.session.commit()
+            return True
+        return False
 
     def add_partner(self, partner_vk_id: int, first_name: str, last_name: str,
-                    bdate: str, city_id: int, region_id: int):
+                    bdate: str, city_id: int, region_id: int) -> bool:
         partner = self.session.query(PartnerInfo).filter_by(partner_vk_id=partner_vk_id).first()
         if not partner:
             new_partner = PartnerInfo(
@@ -117,7 +122,7 @@ class DatabaseManager:
             return True
         return False
 
-    def add_to_favorites(self, user_vk_id: int, partner_vk_id: int):
+    def add_to_favorites(self, user_vk_id: int, partner_vk_id: int) -> bool:
         exists = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id).first()
         if not exists:
             favorite = Favorite(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id)
@@ -126,7 +131,7 @@ class DatabaseManager:
             return True
         return False
 
-    def add_to_blacklist(self, user_vk_id: int, partner_vk_id: int):
+    def add_to_blacklist(self, user_vk_id: int, partner_vk_id: int) -> bool:
         exists = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id).first()
         if not exists:
             blacklist = Blacklist(user_vk_id=user_vk_id, partner_vk_id=partner_vk_id)
@@ -135,7 +140,7 @@ class DatabaseManager:
             return True
         return False
 
-    def add_photo(self, partner_vk_id: int, owner_id: int, media_id: int):
+    def add_photo(self, partner_vk_id: int, owner_id: int, media_id: int) -> bool:
         exists = self.session.query(Photo).filter_by(partner_vk_id=partner_vk_id,
                                                      owner_id=owner_id,
                                                      media_id=media_id).first()
@@ -143,8 +148,10 @@ class DatabaseManager:
             new_photo = Photo(partner_vk_id=partner_vk_id, owner_id=owner_id, media_id=media_id)
             self.session.add(new_photo)
             self.session.commit()
+            return True
+        return False
 
-    def delete_favorite_partner(self, user_vk_id: int, partner_vk_id: int):
+    def delete_favorite_partner(self, user_vk_id: int, partner_vk_id: int) -> bool:
         favorite_partner = self.session.query(Favorite).filter_by(user_vk_id=user_vk_id,
                                                                   partner_vk_id=partner_vk_id).first()
         if favorite_partner:
@@ -153,7 +160,7 @@ class DatabaseManager:
             return True
         return False
 
-    def delete_blacklist_partner(self, user_vk_id: int, partner_vk_id: int):
+    def delete_blacklist_partner(self, user_vk_id: int, partner_vk_id: int) -> bool:
         blacklist_partner = self.session.query(Blacklist).filter_by(user_vk_id=user_vk_id,
                                                                     partner_vk_id=partner_vk_id).first()
         if blacklist_partner:
@@ -161,15 +168,3 @@ class DatabaseManager:
             self.session.commit()
             return True
         return False
-
-
-if __name__ == '__main__':
-    load_dotenv()
-
-    DSN = os.getenv('DSN')
-
-    if not DSN:
-        raise ValueError("DSN не найден")
-
-    engine = sq.create_engine(DSN)
-    db = DatabaseManager(engine)

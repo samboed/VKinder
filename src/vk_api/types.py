@@ -4,7 +4,8 @@ from enum import Enum, StrEnum
 
 
 User = namedtuple('User',
-                  ["id", "first_name", "last_name", "city", "bdate", "sex_index", "is_closed"],
+                  ["id", "first_name", "last_name", "city", "bdate",
+                   "sex_index", "relation_index", "is_closed"],
                   defaults='')
 
 
@@ -31,9 +32,20 @@ class Events(Enum):
 
 
 class Sex(Enum):
-    any = 0
-    women = 1
-    men = 2
+    ANY = 0
+    WOMEN = 1
+    MEN = 2
+
+
+class Relation(Enum):
+    NOT_MARRIED = 1
+    HAVE_SWEETHEART = 2
+    ENGAGED = 3
+    MARRIED = 4
+    COMPLICATED = 5
+    IN_ACTIVE_SEARCHING = 6
+    IN_LOVE = 7
+    CMN_LAW_MARRIAGE = 8
 
 
 @dataclasses.dataclass(frozen=True)
@@ -52,5 +64,5 @@ class ButtonColorTypes(StrEnum):
     positive = "positive"
 
 
-def get_attachment_photo(user_id: int, media_id: int):
-    return Attachment("photo", user_id, media_id)
+def get_attachment_photo(owner_id: int, media_id: int) -> Attachment:
+    return Attachment("photo", owner_id, media_id)

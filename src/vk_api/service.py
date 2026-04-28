@@ -7,8 +7,10 @@ from src.vk_api.logger import NAME_VK_API_LOGGER
 logger = logging.getLogger(NAME_VK_API_LOGGER)
 
 
-def process_get_request(url: str, params: dict = None,
-                        headers: dict = None, expect_status_code: int = 200) -> dict | bool:
+def process_get_request(url: str,
+                        params: dict = None,
+                        headers: dict = None,
+                        expect_status_code: int = 200) -> dict | bool:
     if not headers:
         headers = {}
     if not params:

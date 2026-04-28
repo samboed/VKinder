@@ -1,3 +1,5 @@
+from sqlalchemy.engine.base import Engine
+
 from src.bot.base import BotBase
 from src.bot.keyboard import (payload_command_keyword, payload_value_keyword,
                               command_go_to_main_menu, command_search_panther,
@@ -16,8 +18,9 @@ from src.vk_api.types import Events
 
 
 class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
-    def __init__(self, group_token, user_token, group_id, engine):
-        BotBase.__init__(self, group_token, user_token, group_id, engine)
+    def __init__(self, group_token: str, group_id: int,
+                 user_token: str, engine: Engine):
+        BotBase.__init__(self, group_token, group_id, user_token, engine)
 
     def start(self):
         self.__handler_events()
@@ -54,7 +57,7 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
                         self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
                         self._show_settings(user_id)
 
-                elif dialog_user_state == DialogStates.SHOW_FAVORITE_PHOTO:
+                elif dialog_user_state == DialogStates.SHOW_FAVORITE_PERSON_PHOTO:
                     res_show_favorite_photos = self._show_favorite_photos(user_id, message)
                     if res_show_favorite_photos:
                         self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
@@ -64,7 +67,7 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
                     if res_show_blacklist_photos:
                         self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
 
-                elif dialog_user_state == DialogStates.DEL_FAVORITE:
+                elif dialog_user_state == DialogStates.DEL_FAVORITE_PERSON:
                     res_del_favorite = self._del_favorite(user_id, message)
                     if res_del_favorite:
                         self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
@@ -99,7 +102,7 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
                     self._show_blacklist(user_id)
 
                 elif payload[payload_command_keyword] == command_show_profile_photos_favorites:
-                    self._db.update_dialog_state(user_id, DialogStates.SHOW_FAVORITE_PHOTO.value)
+                    self._db.update_dialog_state(user_id, DialogStates.SHOW_FAVORITE_PERSON_PHOTO.value)
                     self._ask_profile_number_for_show_photos_from_favorites(user_id)
 
                 elif payload[payload_command_keyword] == command_show_user_from_blacklist:
@@ -107,7 +110,7 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
                     self._ask_profile_number_for_show_photos_from_blacklist(user_id)
 
                 elif payload[payload_command_keyword] == command_del_user_from_favorites:
-                    self._db.update_dialog_state(user_id, DialogStates.DEL_FAVORITE.value)
+                    self._db.update_dialog_state(user_id, DialogStates.DEL_FAVORITE_PERSON.value)
                     self._ask_profile_number_for_del_from_favorites(user_id)
 
                 elif payload[payload_command_keyword] == command_del_user_from_blacklist:
@@ -124,14 +127,16 @@ class Bot(BotSetting, BotShow, BotPartner, BotMessage, BotBase):
 
                 elif payload[payload_command_keyword] == command_add_sex_prefer:
                     sex = payload[payload_value_keyword]
-                    self._setup_sex(user_id, sex)
-                    self._show_settings(user_id)
+                    res_setup_sex = self._setup_sex(user_id, sex)
+                    if res_setup_sex:
+                        self._show_settings(user_id)
 
                 elif payload[payload_command_keyword] == command_setup_city:
                     self._db.update_dialog_state(user_id, DialogStates.SETUP_REGION.value)
                     self._show_region_setup(user_id)
 
                 elif payload[payload_command_keyword] == command_setup_sex:
+                    self._db.update_dialog_state(user_id, DialogStates.INITIAL.value)
                     self._show_sex_setup(user_id)
 
                 elif payload[payload_command_keyword] == command_setup_age:

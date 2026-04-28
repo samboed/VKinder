@@ -37,22 +37,27 @@ button_main_menu = Button(ButtonTypes.callback,
 button_men_sex_preference_select = Button(ButtonTypes.callback,
                                           label="Мужской ♂️",
                                           payload={payload_command_keyword: command_add_sex_prefer,
-                                                   payload_value_keyword: Sex.men.value},
+                                                   payload_value_keyword: Sex.MEN.value},
                                           color=ButtonColorTypes.secondary)
 button_women_sex_preference_select = Button(ButtonTypes.callback,
-                                          label="Женский ♀️",
-                                          payload={payload_command_keyword: command_add_sex_prefer,
-                                                   payload_value_keyword: Sex.women.value},
-                                          color=ButtonColorTypes.secondary)
+                                            label="Женский ♀️",
+                                            payload={payload_command_keyword: command_add_sex_prefer,
+                                                     payload_value_keyword: Sex.WOMEN.value},
+                                            color=ButtonColorTypes.secondary)
 button_all_sex_preference_select = Button(ButtonTypes.callback,
                                           label="Неважно ⚤",
                                           payload={payload_command_keyword: command_add_sex_prefer,
-                                                   payload_value_keyword: Sex.any.value},
+                                                   payload_value_keyword: Sex.ANY.value},
                                           color=ButtonColorTypes.secondary)
+button_sex_setup_cancel = Button(ButtonTypes.callback,
+                                          label="Отмена ❌",
+                                          payload={payload_command_keyword: command_show_settings},
+                                          color=ButtonColorTypes.negative)
 
 sex_setting_keyboard = Keyboard([[button_men_sex_preference_select,
                                   button_women_sex_preference_select,
-                                  button_all_sex_preference_select]])
+                                  button_all_sex_preference_select],
+                                 [button_sex_setup_cancel]])
 
 # Settings menu
 button_setup_city = Button(ButtonTypes.callback,

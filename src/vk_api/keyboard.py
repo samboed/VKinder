@@ -93,7 +93,7 @@ class Keyboard:
         if buttons:
             self.__lines.append(buttons)
 
-    def json(self):
+    def json(self) -> str:
         buttons_list = []
         if self.__lines:
             for line in self.__lines:

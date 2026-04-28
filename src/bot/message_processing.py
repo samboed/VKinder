@@ -1,12 +1,17 @@
+from sqlalchemy.engine.base import Engine
+
 from src.bot.base import BotBase
 from src.bot.constants import AGE_MIN_SEARCHING, AGE_MAX_SEARCHING
 
 
 class BotMessage(BotBase):
-    def __init__(self, group_token, user_token, group_id, engine):
-        super().__init__(group_token, user_token, group_id, engine)
+    def __init__(self, group_token: str, group_id: int,
+                 user_token: str, engine: Engine):
+        super().__init__(group_token, group_id, user_token, engine)
 
-    def _process_age_from_message(self, user_id: int, message: str, comment: str):
+    def _process_age_from_message(self, user_id: int,
+                                  message: str,
+                                  comment: str) -> int | bool:
         filtered_message = message.strip()
         if filtered_message.isdigit():
             age = int(filtered_message)
@@ -27,7 +32,9 @@ class BotMessage(BotBase):
 
         return age
 
-    def _process_digit_from_message(self, user_id: int, message: str, comment: str):
+    def _process_digit_from_message(self, user_id: int,
+                                    message: str,
+                                    comment: str) -> int | bool:
         filtered_message = message.strip()
         if not filtered_message.isdigit():
             self._api.send_message(user_id, f"Указан неверный {comment}. "
