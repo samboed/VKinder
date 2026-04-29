@@ -1,4 +1,6 @@
+from collections.abc import Callable
 from sqlalchemy.engine.base import Engine
+from sqlalchemy.orm import InstrumentedAttribute
 
 from src.bot.base import BotBase
 from src.bot.constants import QTY_SEND_PROFILE_PHOTOS, QTY_SEND_MARK_PHOTOS
@@ -11,6 +13,7 @@ from src.bot.message_texts import (SHOW_PHOTOS_FAVORITES_PERSON_TEXT, SHOW_PHOTO
 from src.bot.types import Location
 from src.vk_api.keyboard import Keyboard
 from src.vk_api.types import User, Attachment
+from src.db.database import PartnerInfo
 
 
 class BotPartner(BotMessage, BotBase):
@@ -89,7 +92,10 @@ class BotPartner(BotMessage, BotBase):
         return True
 
     def __del_partner_from_table(self, user_id: int, message: str,
-                                 get_partners_func, del_person_from_db_func,
+                                 get_partners_func:
+                                 Callable[[int], list[InstrumentedAttribute[PartnerInfo]]],
+                                 del_person_from_db_func:
+                                 Callable[[int, int], bool],
                                  comment: str, postfix_comment: str) -> bool:
         partner_num = self._process_digit_from_message(user_id, message, comment)
 
@@ -128,7 +134,7 @@ class BotPartner(BotMessage, BotBase):
                                              comment, "из блэклиста 💔")
 
     def _save_candidate(self, user_id: int, payload: dict,
-                        add_candidate_to_db_func):
+                        add_candidate_to_db_func: Callable[[int, int], bool]):
         partner, partner_photos = self.__unpack_candidate_payload(payload)
 
         settings = self._db.get_user_settings(user_id)

@@ -1,4 +1,6 @@
+from typing import Callable
 from sqlalchemy.engine.base import Engine
+from sqlalchemy.orm import InstrumentedAttribute
 
 from src.bot.base import BotBase
 from src.bot.formatters import get_user_info_str, get_sex_str, get_age_range_str, get_location_str
@@ -10,6 +12,7 @@ from src.bot.message_texts import (MAIN_MENU_TEXT, SPECIFY_REGION_TEXT,
                                    SPECIFY_AGE_FROM_TEXT, SPECIFY_AGE_TO_TEXT)
 from src.bot.partner import BotPartner
 from src.vk_api.types import get_attachment_photo
+from src.db.database import PartnerInfo
 
 
 class BotShow(BotPartner, BotMessage, BotBase):
@@ -20,8 +23,10 @@ class BotShow(BotPartner, BotMessage, BotBase):
     def _show_main_menu(self, user_id: int):
         self._api.send_message(user_id, MAIN_MENU_TEXT, main_menu_keyboard)
 
-    def __show_partner_photos(self, user_id: int, message: str,
-                              comment: str, get_list_func) -> bool:
+    def __show_partner_photos(self, user_id: int,
+                              message: str, comment: str,
+                              get_list_func:
+                              Callable[[int], list[InstrumentedAttribute[PartnerInfo]]]) -> bool:
         partner_num = self._process_digit_from_message(user_id, message, comment)
 
         if partner_num is False:
