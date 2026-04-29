@@ -1,4 +1,5 @@
 import dataclasses
+
 from collections import namedtuple
 from enum import Enum, StrEnum
 

@@ -38,9 +38,9 @@ def get_relation_info_str(relation_ind: int, sex_ind: int) -> str:
 
         case Relation.MARRIED.value:
             if sex_ind == Sex.WOMEN.value:
-                return "жената"
-            elif sex_ind == Sex.MEN.value:
                 return "замужем"
+            elif sex_ind == Sex.MEN.value:
+                return "женат"
             return "в браке"
 
         case Relation.COMPLICATED.value:
