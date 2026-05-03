@@ -30,7 +30,7 @@ VKinder /
 │   ├── settings.py - setting config creator
 │   ├── bot/
 │   │   ├── bot.py - logic of the bot's response to user actions
-│   │   ├── base.py - base class of Bot
+│   │   ├── base.py - base class of bot
 │   │   ├── constants.py - constants for bot
 │   │   ├── formatters.py - functions for formatting variables into a string
 │   │   ├── keyboard.py - templates for buttons in bot chat
@@ -58,7 +58,7 @@ VKinder /
 ## Database Structure
 ![](images/vkinder_db_diagram.png)
 ### Tables List:
-* *Users* - vkontakte uid list for each user
+* *Users* - vk id list for each user
 * *Dialog_state* - state of dialogue with the user
 * *User_settings* - search settings for user
 * *Temp_settings* - user temporary search settings data before installation
@@ -141,7 +141,7 @@ To use the program, you need to create VK group bot and get group, user API toke
 
    ![](images/vk_bot_creation/click_create_key.png)
 
-10. Check the right of access to community messages and confirm your choice
+10. Select the right of access to community messages and confirm your choice
    
    ![](images/vk_bot_creation/group_setup_rights.png)
 
